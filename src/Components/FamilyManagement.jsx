@@ -1,58 +1,96 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { db } from '../Firebase/config';
-import { collection, doc, getDoc, getDocs, writeBatch } from 'firebase/firestore';
-import { FiUsers, FiPlus, FiX, FiSearch, FiPrinter } from 'react-icons/fi';
+import { collection, doc, getDoc, getDocs, writeBatch, setDoc } from 'firebase/firestore';
+import { FiUsers, FiPlus, FiX, FiSearch, FiPrinter, FiMessageCircle } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import TranslatedText from './TranslatedText';
+import BluetoothPrinter from './BluetoothPrinter';
 
 const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => {
   const [showFamilyModal, setShowFamilyModal] = useState(false);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [whatsappNumber, setWhatsappNumber] = useState('');
   const [allVoters, setAllVoters] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [modalQuery, setModalQuery] = useState('');
   const [modalPage, setModalPage] = useState(1);
   const [printing, setPrinting] = useState(false);
   const [loadingOperation, setLoadingOperation] = useState(false);
-  const loadingRef = useRef(false);
+  const [voterData, setVoterData] = useState(null);
+  const [addingMemberId, setAddingMemberId] = useState(null);
   
-  const pageSize = 1000;
+  const loadingRef = useRef(false);
+  const pageSize = 50; // Reduced for better performance
   const modalDebounceRef = useRef(null);
 
+  // Load voter data with contact information
+  useEffect(() => {
+    if (voter) {
+      loadVoterData();
+    }
+  }, [voter]);
+
+  // Initialize modal with optimized loading
   useEffect(() => {
     if (showFamilyModal) {
-      const initializeModal = async () => {
-        try {
-          setLoadingOperation(true);
-          await loadAllVoters();
-          setModalQuery(searchTerm || '');
-          setModalPage(1);
-          
-          // Focus search input after modal is fully rendered
-          setTimeout(() => {
-            const searchInput = document.getElementById('family-modal-search');
-            if (searchInput) {
-              searchInput.focus();
-            }
-          }, 100);
-        } finally {
-          setLoadingOperation(false);
-        }
-      };
-      
       initializeModal();
     }
   }, [showFamilyModal]);
 
+  // Debounced search
   useEffect(() => {
     if (modalDebounceRef.current) clearTimeout(modalDebounceRef.current);
     modalDebounceRef.current = setTimeout(() => {
       setSearchTerm(modalQuery);
       setModalPage(1);
-    }, 250);
+    }, 300);
     return () => {
       if (modalDebounceRef.current) clearTimeout(modalDebounceRef.current);
     };
   }, [modalQuery]);
+
+  const loadVoterData = async () => {
+    try {
+      const docId = voter?.id || voter?.voterId;
+      if (!docId) {
+        setVoterData(voter);
+        return;
+      }
+
+      const voterDocRef = doc(db, 'voters', String(docId));
+      const voterDoc = await getDoc(voterDocRef);
+      
+      if (voterDoc.exists()) {
+        setVoterData({ ...voter, ...voterDoc.data() });
+      } else {
+        setVoterData(voter);
+      }
+    } catch (error) {
+      console.error('Error loading voter data:', error);
+      setVoterData(voter);
+    }
+  };
+
+  const initializeModal = async () => {
+    try {
+      setLoadingOperation(true);
+      // Load voters only if not already loaded
+      if (allVoters.length === 0) {
+        await loadAllVoters();
+      }
+      setModalQuery(searchTerm || '');
+      setModalPage(1);
+      
+      setTimeout(() => {
+        const searchInput = document.getElementById('family-modal-search');
+        if (searchInput) {
+          searchInput.focus();
+        }
+      }, 100);
+    } finally {
+      setLoadingOperation(false);
+    }
+  };
 
   const loadAllVoters = async () => {
     try {
@@ -69,11 +107,41 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
     }
   };
 
+  const saveContactNumber = async (number) => {
+    try {
+      const docId = voter?.id || voter?.voterId;
+      if (!docId) throw new Error('Voter ID not available');
+      
+      const voterDocRef = doc(db, 'voters', String(docId));
+      await setDoc(voterDocRef, { whatsapp: number }, { merge: true });
+      
+      setVoterData(prev => ({ ...prev, whatsapp: number }));
+      return true;
+    } catch (error) {
+      console.error('Error saving WhatsApp number:', error);
+      return false;
+    }
+  };
+
+  const getWhatsAppNumber = () => {
+    return voterData?.whatsapp || '';
+  };
+
+  const hasWhatsAppNumber = () => {
+    const number = getWhatsAppNumber();
+    return number && number.length === 10;
+  };
+
+  const validatePhoneNumber = (number) => {
+    const cleaned = number.replace(/\D/g, '');
+    return cleaned.length === 10;
+  };
+
   const addFamilyMember = async (memberId) => {
-    if (loadingRef.current) return;
+    if (loadingRef.current || addingMemberId) return;
     
     try {
-      setLoadingOperation(true);
+      setAddingMemberId(memberId);
       loadingRef.current = true;
 
       const voterDocRef = doc(db, 'voters', voter.id);
@@ -91,7 +159,6 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
       const voterData = voterSnap.data();
       const memberData = memberSnap.data();
 
-      // Check if already a family member
       if (voterData.familyMembers?.[memberId]) {
         alert('हा मतदार आधीच कुटुंबात आहे');
         return;
@@ -115,7 +182,7 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
       console.error('Error adding family member:', error);
       alert('कुटुंब सदस्य जोडण्यात त्रुटी: ' + (error.message || error));
     } finally {
-      setLoadingOperation(false);
+      setAddingMemberId(null);
       loadingRef.current = false;
     }
   };
@@ -148,56 +215,42 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
     }
   };
 
-  const generateWhatsAppMessage = (isFamily = false) => {
-    if (isFamily && familyMembers.length > 0) {
-      let message = `🗳️ *${candidateInfo.party}*\n`;
-      message += `*${candidateInfo.name}*\n`;
-      message += `${candidateInfo.slogan}\n\n`;
-      
-      message += `🏠 *कुटुंब तपशील* 🏠\n\n`;
-      message += `*मुख्य मतदार:*\n`;
-      message += `नाव: ${voter.name}\n`;
-      message += `मतदार आयडी: ${voter.voterId || 'N/A'}\n`;
-      message += `बूथ क्र.: ${voter.boothNumber || 'N/A'}\n`;
-      message += `पत्ता: ${voter.pollingStationAddress || 'N/A'}\n\n`;
-      
-      message += `*कुटुंब सदस्य:*\n`;
-      familyMembers.forEach((member, index) => {
-        message += `${index + 1}. ${member.name}\n`;
-        message += `   🆔 मतदार आयडी: ${member.voterId || 'N/A'}\n`;
-        message += `   📍 बूथ क्र.: ${member.boothNumber || 'N/A'}\n`;
-        if (member.age) message += `   👤 वय: ${member.age}\n`;
-        if (member.gender) message += `   ⚤ लिंग: ${member.gender}\n`;
-        message += '\n';
-      });
-      
-      message += `\n🙏 कृपया ${candidateInfo.electionSymbol} या चिन्हावर मतदान करा\n`;
-      message += `📞 संपर्क: ${candidateInfo.contact}`;
-      
-      return message;
-    } else {
-      let message = `🗳️ *${candidateInfo.party}*\n`;
-      message += `*${candidateInfo.name}*\n`;
-      message += `${candidateInfo.slogan}\n\n`;
-      
-      message += `👤 *मतदार तपशील*\n\n`;
-      message += `नाव: ${voter.name}\n`;
-      message += `मतदार आयडी: ${voter.voterId || 'N/A'}\n`;
-      message += `अनुक्रमांक: ${voter.serialNumber || 'N/A'}\n`;
-      message += `बूथ क्र.: ${voter.boothNumber || 'N/A'}\n`;
-      message += `पत्ता: ${voter.pollingStationAddress || 'N/A'}\n`;
-      
-      if (voter.age) message += `वय: ${voter.age}\n`;
-      if (voter.gender) message += `लिंग: ${voter.gender}\n`;
-      
-      message += `\n🙏 कृपया ${candidateInfo.electionSymbol} या चिन्हावर मतदान करा\n`;
-      message += `📞 संपर्क: ${candidateInfo.contact}`;
-      
-      return message;
-    }
-  };
+  const generateWhatsAppMessage = useCallback(() => {
+    if (!voterData || familyMembers.length === 0) return '';
 
-  const shareFamilyViaWhatsApp = async () => {
+    let message = `*${candidateInfo.party}*\n`;
+    message += `*${candidateInfo.name}*\n`;
+    message += `${candidateInfo.slogan}\n\n`;
+
+    message += `*कुटुंब तपशील*\n\n`;
+    
+    // Main voter (1)
+    message += `*1) ${voterData.name}*\n`;
+    message += `अनुक्रमांक: ${voterData.serialNumber || 'N/A'}\n`;
+    message += `मतदार आयडी: ${voterData.voterId || 'N/A'}\n`;
+    message += `बूथ क्रमांक: ${voterData.boothNumber || 'N/A'}\n`;
+    message += `लिंग: ${voterData.gender || 'N/A'}\n`;
+    message += `वय: ${voterData.age || 'N/A'}\n`;
+    message += `मतदान केंद्र: ${voterData.pollingStationAddress || 'N/A'}\n\n`;
+
+    // Family members (2...)
+    familyMembers.forEach((member, index) => {
+      message += `*${index + 2}) ${member.name}*\n`;
+      message += `अनुक्रमांक: ${member.serialNumber || 'N/A'}\n`;
+      message += `मतदार आयडी: ${member.voterId || 'N/A'}\n`;
+      message += `बूथ क्रमांक: ${member.boothNumber || 'N/A'}\n`;
+      message += `लिंग: ${member.gender || 'N/A'}\n`;
+      message += `वय: ${member.age || 'N/A'}\n`;
+      message += `मतदान केंद्र: ${member.pollingStationAddress || 'N/A'}\n\n`;
+    });
+
+    message += `मी आपला *जननेता* माझी निशाणी *कमळ* या चिन्हावर मतदान करून मला प्रचंड बहुमतांनी विजय करा\n\n`;
+    message += `*${candidateInfo.name}*`;
+
+    return message;
+  }, [voterData, familyMembers, candidateInfo]);
+
+  const handleWhatsAppShare = async () => {
     if (loadingRef.current) return;
     
     if (familyMembers.length === 0) {
@@ -209,33 +262,15 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
       setLoadingOperation(true);
       loadingRef.current = true;
 
-      const whatsappNumber = voter.whatsapp || voter.whatsappNumber;
-      let numberToUse = whatsappNumber;
-
-      if (!numberToUse) {
-        const newNumber = prompt('व्हॉट्सअॅप क्रमांक टाका:');
-        if (!newNumber) return;
-
-        if (!/^\d{10}$/.test(newNumber)) {
-          alert('कृपया 10 अंकी व्हॉट्सअॅप क्रमांक टाका');
-          return;
-        }
-
-        numberToUse = newNumber;
-        
-        // Save the new number
-        const voterDocRef = doc(db, 'voters', voter.id);
-        await updateDoc(voterDocRef, { whatsapp: numberToUse });
-        onUpdate?.();
+      if (hasWhatsAppNumber()) {
+        // Direct share if number exists
+        const message = generateWhatsAppMessage();
+        const url = `https://wa.me/91${getWhatsAppNumber()}?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
+      } else {
+        // Show modal to collect number
+        setShowWhatsAppModal(true);
       }
-
-      const message = generateWhatsAppMessage(true);
-      const formattedNumber = numberToUse.replace(/\D/g, '');
-      if (!formattedNumber.startsWith('91')) {
-        formattedNumber = '91' + formattedNumber;
-      }
-      const url = `https://wa.me/${formattedNumber}?text=${encodeURIComponent(message)}`;
-      window.open(url, '_system');
     } catch (error) {
       console.error('WhatsApp sharing error:', error);
       alert('व्हॉट्सअॅप शेअर करण्यात त्रुटी: ' + (error.message || error));
@@ -245,22 +280,40 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
     }
   };
 
+  const confirmWhatsAppShare = async () => {
+    if (!validatePhoneNumber(whatsappNumber)) {
+      alert('कृपया वैध 10-अंकी व्हॉट्सअॅप क्रमांक प्रविष्ट करा');
+      return;
+    }
+
+    const cleanedNumber = whatsappNumber.replace(/\D/g, '');
+    const saved = await saveContactNumber(cleanedNumber);
+    
+    if (saved) {
+      const message = generateWhatsAppMessage();
+      const url = `https://wa.me/91${cleanedNumber}?text=${encodeURIComponent(message)}`;
+      window.open(url, '_blank');
+      setShowWhatsAppModal(false);
+      setWhatsappNumber('');
+    } else {
+      alert('व्हॉट्सअॅप क्रमांक जतन करण्यात त्रुटी आली');
+    }
+  };
+
   const printFamily = async () => {
     if (loadingRef.current) return;
-    
     if (!familyMembers || familyMembers.length === 0) {
       alert('कुटुंब सदस्य जोडलेले नाहीत');
       return;
     }
-
     try {
       setPrinting(true);
       loadingRef.current = true;
-
+      // Check if BluetoothPrinter is available
       if (typeof window.printFamily === 'function') {
         await window.printFamily(true);
       } else {
-        throw new Error('प्रिंटर कनेक्ट केलेला नाही');
+        alert('प्रिंटर कनेक्ट केलेला नाही. कृपया BluetoothPrinter कनेक्ट करा आणि पुन्हा प्रयत्न करा.');
       }
     } catch (error) {
       console.error('Printing error:', error);
@@ -271,14 +324,16 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
     }
   };
 
-  // Filter logic
-  const filteredVoters = allVoters.filter(vtr =>
-    vtr.name?.toLowerCase().includes(searchTerm.toLowerCase()) &&
-    vtr.id !== voter.id &&
-    !familyMembers.some(member => member.id === vtr.id)
+  // Optimized filter logic with memoization
+  const filteredVoters = useMemo(() => 
+    allVoters.filter(vtr =>
+      vtr.name?.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      vtr.id !== voter.id &&
+      !familyMembers.some(member => member.id === vtr.id)
+    ),
+    [allVoters, searchTerm, voter.id, familyMembers]
   );
 
-  // Modal search and pagination logic
   const voterSurname = useMemo(() => {
     if (!voter?.name) return '';
     const parts = String(voter.name).trim().split(/\s+/);
@@ -293,7 +348,8 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
     }
     return filteredVoters.filter((v) => {
       const name = (v.name || '').toLowerCase();
-      return tokens.every(token => name.includes(token) || (String(v.voterId || '').toLowerCase().includes(token)));
+      const voterId = String(v.voterId || '').toLowerCase();
+      return tokens.every(token => name.includes(token) || voterId.includes(token));
     });
   }, [filteredVoters, searchTerm]);
 
@@ -336,20 +392,95 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
     return () => window.removeEventListener('keydown', onKey);
   }, [showFamilyModal]);
 
+  // WhatsApp Modal Component
+  const WhatsAppModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg w-full max-w-md mx-auto">
+        <div className="flex justify-between items-center p-6 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900">व्हॉट्सअॅप क्रमांक प्रविष्ट करा</h3>
+          <button
+            onClick={() => {
+              setShowWhatsAppModal(false);
+              setWhatsappNumber('');
+            }}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <FiX size={24} />
+          </button>
+        </div>
+        
+        <div className="p-6">
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              व्हॉट्सअॅप क्रमांक
+            </label>
+            <input
+              type="tel"
+              placeholder="10-अंकी व्हॉट्सअॅप क्रमांक"
+              value={whatsappNumber}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, '');
+                if (value.length <= 10) {
+                  setWhatsappNumber(value);
+                }
+              }}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              maxLength="10"
+              autoFocus
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              हा क्रमांक डेटाबेसमध्ये जतन केला जाईल
+            </p>
+          </div>
+          
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setShowWhatsAppModal(false);
+                setWhatsappNumber('');
+              }}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+            >
+              रद्द करा
+            </button>
+            <button
+              onClick={confirmWhatsAppShare}
+              disabled={!validatePhoneNumber(whatsappNumber)}
+              className={`flex-1 px-4 py-2 text-white rounded-lg font-medium transition-colors ${
+                validatePhoneNumber(whatsappNumber)
+                  ? 'bg-green-500 hover:bg-green-600'
+                  : 'bg-gray-400 cursor-not-allowed'
+              }`}
+            >
+              व्हॉट्सअॅप वर पाठवा
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
+      {/* WhatsApp Modal */}
+      {showWhatsAppModal && <WhatsAppModal />}
+
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
           <FiUsers className="text-orange-500" />
           <TranslatedText>Family Members</TranslatedText>
+          <span className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">
+            {familyMembers.length}
+          </span>
         </h3>
         <div className="flex gap-2">
           <button
             onClick={() => setShowFamilyModal(true)}
-            className="flex items-center gap-2 bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors"
+            className="flex items-center gap-2 bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors disabled:opacity-50"
+            disabled={loadingOperation}
           >
             <FiPlus className="text-sm" />
-           <TranslatedText>Add</TranslatedText>
+            <TranslatedText>Add</TranslatedText>
           </button>
         </div>
       </div>
@@ -366,8 +497,9 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
             <span><TranslatedText>Print Family</TranslatedText></span>
           </button>
           <button
-            onClick={shareFamilyViaWhatsApp}
-            className="bg-green-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600 transition-all duration-200 flex items-center justify-center gap-2 text-sm shadow-sm hover:shadow-md"
+            onClick={handleWhatsAppShare}
+            disabled={loadingOperation}
+            className="bg-green-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm shadow-sm hover:shadow-md"
           >
             <FaWhatsapp className="text-lg" />
             <span><TranslatedText>Share Family</TranslatedText></span>
@@ -375,13 +507,16 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
         </div>
       )}
 
+      {/* Family Members List */}
       <div className="space-y-3">
         {familyMembers.map((member) => (
           <div key={member.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-orange-300 transition-colors bg-white">
             <div className="flex-1">
               <div className="font-medium text-gray-900"><TranslatedText>{member.name}</TranslatedText></div>
               <div className="text-xs text-gray-500 mt-1">
-                <TranslatedText>ID:</TranslatedText> {member.voterId} • <TranslatedText>Age: {member.age || 'N/A'}</TranslatedText> • <TranslatedText>Booth: {member.boothNumber || 'N/A'}</TranslatedText> • <TranslatedText>Address: {member.pollingStationAddress || 'N/A'}</TranslatedText>
+                <TranslatedText>ID:</TranslatedText> {member.voterId} • 
+                <TranslatedText>Age: {member.age || 'N/A'}</TranslatedText> • 
+                <TranslatedText>Booth: {member.boothNumber || 'N/A'}</TranslatedText>
               </div>
             </div>
             <div className="flex gap-2">
@@ -392,7 +527,6 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
                   window.dispatchEvent(new PopStateEvent('popstate'));
                 }}
                 className="text-orange-600 hover:text-orange-700 text-xs font-medium px-3 py-1 bg-orange-50 rounded-md transition-colors"
-                disabled={loadingOperation}
               >
                 <TranslatedText>View</TranslatedText>
               </button>
@@ -400,7 +534,7 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
                 onClick={() => removeFamilyMember(member.id)}
                 className="text-red-600 hover:text-red-700 text-xs font-medium px-3 py-1 bg-red-50 rounded-md transition-colors"
               >
-               <TranslatedText>Remove</TranslatedText>
+                <TranslatedText>Remove</TranslatedText>
               </button>
             </div>
           </div>
@@ -425,7 +559,7 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
                   <TranslatedText>Add Family Member</TranslatedText>
                 </h3>
                 <p className="text-sm text-gray-500 mt-1">
-                   <TranslatedText>Search and select voters to add as family members</TranslatedText>
+                  <TranslatedText>Search and select voters to add as family members</TranslatedText>
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -448,12 +582,12 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
               <div className="relative mb-4">
                 <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
+                  id="family-modal-search"
                   type="text"
                   value={modalQuery}
                   onChange={(e) => setModalQuery(e.target.value)}
                   placeholder="Type name or partial name (search not exact)..."
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-colors"
-                  autoFocus
                 />
               </div>
 
@@ -461,7 +595,11 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
               {voterSurname && surnameTopList.length > 0 && (
                 <div className="mb-3">
                   <div className="text-sm text-gray-700 font-medium">
-                    <TranslatedText>Showing same surname first:</TranslatedText> <span className="ml-2 font-semibold"><TranslatedText>{voterSurname}</TranslatedText></span> • <span className="text-xs text-gray-500"><TranslatedText>{surnameTopList.length} matches</TranslatedText></span>
+                    <TranslatedText>Showing same surname first:</TranslatedText> 
+                    <span className="ml-2 font-semibold"><TranslatedText>{voterSurname}</TranslatedText></span> • 
+                    <span className="text-xs text-gray-500 ml-2">
+                      <TranslatedText>{surnameTopList.length} matches</TranslatedText>
+                    </span>
                   </div>
                 </div>
               )}
@@ -472,15 +610,21 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
                   <div key={v.id} className="flex items-center justify-between p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors">
                     <div className="flex-1 min-w-0">
                       <h4 className="font-medium text-gray-900 truncate"><TranslatedText>{v.name}</TranslatedText></h4>
-                      <p className="text-sm text-gray-700 truncate"><TranslatedText>ID:</TranslatedText> {v.voterId} • <TranslatedText>Booth: {v.boothNumber || 'N/A'}</TranslatedText></p>
+                      <p className="text-sm text-gray-700 truncate">
+                        <TranslatedText>ID:</TranslatedText> {v.voterId} • 
+                        <TranslatedText>Booth: {v.boothNumber || 'N/A'}</TranslatedText>
+                      </p>
                     </div>
                     <div className="flex gap-2 ml-4">
                       <button
                         onClick={() => addFamilyMember(v.id)}
-                        className="flex items-center gap-2 bg-orange-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-orange-600 transition-colors"
+                        disabled={addingMemberId === v.id}
+                        className="flex items-center gap-2 bg-orange-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <FiPlus className="text-xs" />
-                        <TranslatedText>Add</TranslatedText>
+                        <TranslatedText>
+                          {addingMemberId === v.id ? 'Adding...' : 'Add'}
+                        </TranslatedText>
                       </button>
                     </div>
                   </div>
@@ -498,14 +642,14 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
                 <button
                   onClick={() => setModalPage(prev => Math.max(1, prev - 1))}
                   disabled={modalPage <= 1}
-                  className="px-3 py-2 bg-gray-100 text-sm rounded-md disabled:opacity-50"
+                  className="px-3 py-2 bg-gray-100 text-sm rounded-md disabled:opacity-50 hover:bg-gray-200 transition-colors"
                 >
                   ← Prev
                 </button>
                 <button
                   onClick={() => setModalPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={modalPage >= totalPages}
-                  className="px-3 py-2 bg-gray-100 text-sm rounded-md disabled:opacity-50"
+                  className="px-3 py-2 bg-gray-100 text-sm rounded-md disabled:opacity-50 hover:bg-gray-200 transition-colors"
                 >
                   Next →
                 </button>
@@ -520,7 +664,7 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
                 </div>
                 <button
                   onClick={() => setShowFamilyModal(false)}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   <TranslatedText>Close</TranslatedText>
                 </button>
@@ -529,6 +673,12 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
           </div>
         </div>
       )}
+
+      <BluetoothPrinter
+        voter={voter}
+        familyMembers={familyMembers}
+        candidateInfo={candidateInfo}
+      />
     </div>
   );
 };

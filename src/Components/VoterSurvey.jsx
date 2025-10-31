@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../Firebase/config';
 import { doc, updateDoc } from 'firebase/firestore';
+import TranslatedText from './TranslatedText';
+
 
 const VoterSurvey = ({ voter, onUpdate }) => {
   const [surveyData, setSurveyData] = useState({
@@ -15,8 +17,6 @@ const VoterSurvey = ({ voter, onUpdate }) => {
     category: '',
     education: '',
     occupation: '',
-    familyIncome: '',
-    politicalAffiliation: '',
     issues: '',
     remarks: ''
   });
@@ -41,22 +41,16 @@ const VoterSurvey = ({ voter, onUpdate }) => {
   };
 
   const handlePhoneChange = (field, value) => {
-    // Auto-format with +91
+    // Allow only numbers and limit to 10 digits
     let formattedValue = value.replace(/\D/g, '');
-    if (formattedValue && !formattedValue.startsWith('91')) {
-      formattedValue = '91' + formattedValue;
-    }
-    if (formattedValue.length > 12) {
-      formattedValue = formattedValue.slice(0, 12);
+    if (formattedValue.length > 10) {
+      formattedValue = formattedValue.slice(0, 10);
     }
     setSurveyData(prev => ({ ...prev, [field]: formattedValue }));
   };
 
   const formatPhoneDisplay = (value) => {
     if (!value) return '';
-    if (value.startsWith('91')) {
-      return '+91 ' + value.slice(2);
-    }
     return value;
   };
 
@@ -99,8 +93,6 @@ const VoterSurvey = ({ voter, onUpdate }) => {
         category: '',
         education: '',
         occupation: '',
-        familyIncome: '',
-        politicalAffiliation: '',
         issues: '',
         remarks: ''
       });
@@ -120,226 +112,277 @@ const VoterSurvey = ({ voter, onUpdate }) => {
   const occupations = ['', 'Student', 'Farmer', 'Business', 'Service', 'Professional', 'Housewife', 'Retired', 'Unemployed', 'Other'];
 
   return (
-    <div className="space-y-6">
-      <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-        📋 Voter Survey
-      </h3>
-
-      <div className="grid grid-cols-1 gap-4 text-sm">
-        {/* Personal Information */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs text-gray-600 mb-2 font-medium">Gender *</label>
-            <select
-              value={surveyData.gender}
-              onChange={(e) => handleInputChange('gender', e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-colors"
-            >
-              <option value="">Select Gender</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 mb-2 font-medium">Date of Birth</label>
-            <input
-              type="date"
-              value={surveyData.dob}
-              onChange={(e) => handleInputChange('dob', e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-colors"
-            />
-          </div>
+    <div className="space-y-6 bg-white rounded-xl">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+          <span className="text-orange-500"></span>
+          <TranslatedText>Voter Survey</TranslatedText>
+        </h3>
+        <div className="text-xs bg-orange-50 text-orange-700 px-3 py-1 rounded-full font-medium">
+          <TranslatedText>Required fields marked with *</TranslatedText>
         </div>
+      </div>
 
-        {/* Contact Information */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs text-gray-600 mb-2 font-medium">WhatsApp Number</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 text-sm">+91</span>
-              <input
-                type="tel"
-                value={formatPhoneDisplay(surveyData.whatsapp)}
-                onChange={(e) => handlePhoneChange('whatsapp', e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-colors"
-                placeholder="9876543210"
-                maxLength={10}
-              />
+      <div className="grid grid-cols-1 gap-6">
+        {/* Personal Information Section */}
+        <div className="rounded-lg">
+          <h4 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <span className="text-blue-500"></span>
+            <TranslatedText>Personal Information</TranslatedText>
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-gray-700 mb-2 font-medium">
+                <TranslatedText>Gender</TranslatedText> *
+              </label>
+              <select
+                value={surveyData.gender}
+                onChange={(e) => handleInputChange('gender', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all duration-200 bg-white"
+              >
+                <option value=""><TranslatedText>Select Gender</TranslatedText></option>
+                <option value="Male"><TranslatedText>Male</TranslatedText></option>
+                <option value="Female"><TranslatedText>Female</TranslatedText></option>
+                <option value="Other"><TranslatedText>Other</TranslatedText></option>
+              </select>
             </div>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 mb-2 font-medium">Phone Number</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 text-sm">+91</span>
+            <div>
+              <label className="block text-sm text-gray-700 mb-2 font-medium">
+                <TranslatedText>Date of Birth</TranslatedText>
+              </label>
               <input
-                type="tel"
-                value={formatPhoneDisplay(surveyData.phone)}
-                onChange={(e) => handlePhoneChange('phone', e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-colors"
-                placeholder="9876543210"
-                maxLength={10}
+                type="date"
+                value={surveyData.dob}
+                onChange={(e) => handleInputChange('dob', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all duration-200 bg-white"
               />
             </div>
           </div>
         </div>
 
-        {/* Address Information */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-xs text-gray-600 mb-2 font-medium">City *</label>
-            <select
-              value={surveyData.city}
-              onChange={(e) => handleInputChange('city', e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-colors"
-            >
-              {cities.map(city => (
-                <option key={city} value={city}>{city}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 mb-2 font-medium">Town/Village</label>
-            <input
-              type="text"
-              value={surveyData.town}
-              onChange={(e) => handleInputChange('town', e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-colors"
-              placeholder="Enter town/village"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 mb-2 font-medium">Colony/Area</label>
-            <input
-              type="text"
-              value={surveyData.colony}
-              onChange={(e) => handleInputChange('colony', e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-colors"
-              placeholder="Enter colony/area"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs text-gray-600 mb-2 font-medium">Detailed Address</label>
-          <textarea
-            value={surveyData.address}
-            onChange={(e) => handleInputChange('address', e.target.value)}
-            rows={3}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-colors"
-            placeholder="Enter complete address with landmarks..."
-          />
-        </div>
-
-        {/* Socio-Economic Information */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs text-gray-600 mb-2 font-medium">Category</label>
-            <select
-              value={surveyData.category}
-              onChange={(e) => handleInputChange('category', e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-colors"
-            >
-              {categories.map(cat => (
-                <option key={cat} value={cat}>{cat || 'Select Category'}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 mb-2 font-medium">Education</label>
-            <select
-              value={surveyData.education}
-              onChange={(e) => handleInputChange('education', e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-colors"
-            >
-              {educationLevels.map(edu => (
-                <option key={edu} value={edu}>{edu || 'Select Education'}</option>
-              ))}
-            </select>
+        {/* Contact Information Section */}
+        <div className="rounded-lg">
+          <h4 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <span className="text-green-500"></span>
+            <TranslatedText>Contact Information</TranslatedText>
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-gray-700 mb-2 font-medium">
+                <TranslatedText>WhatsApp Number</TranslatedText>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 text-sm font-medium">+91</span>
+                <input
+                  type="tel"
+                  value={surveyData.whatsapp}
+                  onChange={(e) => handlePhoneChange('whatsapp', e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all duration-200 bg-white"
+                  placeholder="9876543210"
+                  maxLength={10}
+                />
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                <TranslatedText>Enter 10-digit number without +91</TranslatedText>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700 mb-2 font-medium">
+                <TranslatedText>Phone Number</TranslatedText>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 text-sm font-medium">+91</span>
+                <input
+                  type="tel"
+                  value={surveyData.phone}
+                  onChange={(e) => handlePhoneChange('phone', e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all duration-200 bg-white"
+                  placeholder="9876543210"
+                  maxLength={10}
+                />
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                <TranslatedText>Enter 10-digit number without +91</TranslatedText>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs text-gray-600 mb-2 font-medium">Occupation</label>
-            <select
-              value={surveyData.occupation}
-              onChange={(e) => handleInputChange('occupation', e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-colors"
-            >
-              {occupations.map(occ => (
-                <option key={occ} value={occ}>{occ || 'Select Occupation'}</option>
-              ))}
-            </select>
+        {/* Address Information Section */}
+        <div className=" rounded-lg ">
+          <h4 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <span className="text-purple-500"></span>
+            <TranslatedText>Address Information</TranslatedText>
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+            <div>
+              <label className="block text-sm text-gray-700 mb-2 font-medium">
+                <TranslatedText>City</TranslatedText> *
+              </label>
+              <select
+                value={surveyData.city}
+                onChange={(e) => handleInputChange('city', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all duration-200 bg-white"
+              >
+                {cities.map(city => (
+                  <option key={city} value={city}><TranslatedText>{city}</TranslatedText></option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700 mb-2 font-medium">
+                <TranslatedText>Town/Village</TranslatedText>
+              </label>
+              <input
+                type="text"
+                value={surveyData.town}
+                onChange={(e) => handleInputChange('town', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all duration-200 bg-white"
+                placeholder="Enter town/village"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700 mb-2 font-medium">
+                <TranslatedText>Colony/Area</TranslatedText>
+              </label>
+              <input
+                type="text"
+                value={surveyData.colony}
+                onChange={(e) => handleInputChange('colony', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all duration-200 bg-white"
+                placeholder="Enter colony/area"
+              />
+            </div>
           </div>
           <div>
-            <label className="block text-xs text-gray-600 mb-2 font-medium">Family Income (Monthly)</label>
-            <input
-              type="text"
-              value={surveyData.familyIncome}
-              onChange={(e) => handleInputChange('familyIncome', e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-colors"
-              placeholder="e.g., ₹25,000"
-            />
-          </div>
-        </div>
-
-        {/* Political Information */}
-        <div className="grid grid-cols-1 gap-4">
-          <div>
-            <label className="block text-xs text-gray-600 mb-2 font-medium">Political Affiliation</label>
-            <input
-              type="text"
-              value={surveyData.politicalAffiliation}
-              onChange={(e) => handleInputChange('politicalAffiliation', e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-colors"
-              placeholder="Political party preference"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 mb-2 font-medium">Key Issues / Concerns</label>
+            <label className="block text-sm text-gray-700 mb-2 font-medium">
+              <TranslatedText>Detailed Address</TranslatedText>
+            </label>
             <textarea
-              value={surveyData.issues}
-              onChange={(e) => handleInputChange('issues', e.target.value)}
-              rows={2}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-colors"
-              placeholder="What issues matter most to this voter?"
+              value={surveyData.address}
+              onChange={(e) => handleInputChange('address', e.target.value)}
+              rows={3}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all duration-200 bg-white resize-none"
+              placeholder="Enter complete address with landmarks..."
             />
           </div>
-          <div>
-            <label className="block text-xs text-gray-600 mb-2 font-medium">Remarks / Notes</label>
-            <textarea
-              value={surveyData.remarks}
-              onChange={(e) => handleInputChange('remarks', e.target.value)}
-              rows={2}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition-colors"
-              placeholder="Additional notes..."
-            />
+        </div>
+
+        {/* Socio-Economic Information Section */}
+        <div className="">
+          <h4 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <span className="text-indigo-500"></span>
+            <TranslatedText>Socio-Economic Information</TranslatedText>
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm text-gray-700 mb-2 font-medium">
+                <TranslatedText>Category</TranslatedText>
+              </label>
+              <select
+                value={surveyData.category}
+                onChange={(e) => handleInputChange('category', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all duration-200 bg-white"
+              >
+                {categories.map(cat => (
+                  <option key={cat} value={cat}><TranslatedText>{cat || 'Select Category'}</TranslatedText></option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700 mb-2 font-medium">
+                <TranslatedText>Education</TranslatedText>
+              </label>
+              <select
+                value={surveyData.education}
+                onChange={(e) => handleInputChange('education', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all duration-200 bg-white"
+              >
+                {educationLevels.map(edu => (
+                  <option key={edu} value={edu}><TranslatedText>{edu || 'Select Education'}</TranslatedText></option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700 mb-2 font-medium">
+                <TranslatedText>Occupation</TranslatedText>
+              </label>
+              <select
+                value={surveyData.occupation}
+                onChange={(e) => handleInputChange('occupation', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all duration-200 bg-white"
+              >
+                {occupations.map(occ => (
+                  <option key={occ} value={occ}><TranslatedText>{occ || 'Select Occupation'}</TranslatedText></option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Additional Information Section */}
+        <div className="">
+          <h4 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <span className="text-teal-500"></span>
+            <TranslatedText>Additional Information</TranslatedText>
+          </h4>
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <label className="block text-sm text-gray-700 mb-2 font-medium">
+                <TranslatedText>Key Issues / Concerns</TranslatedText>
+              </label>
+              <textarea
+                value={surveyData.issues}
+                onChange={(e) => handleInputChange('issues', e.target.value)}
+                rows={3}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all duration-200 bg-white resize-none"
+                placeholder="What issues matter most to this voter?"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700 mb-2 font-medium">
+                <TranslatedText>Remarks / Notes</TranslatedText>
+              </label>
+              <textarea
+                value={surveyData.remarks}
+                onChange={(e) => handleInputChange('remarks', e.target.value)}
+                rows={2}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all duration-200 bg-white resize-none"
+                placeholder="Additional notes..."
+              />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Action Buttons */}
-      <div className="flex gap-3 pt-4">
+      <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200">
         <button
           onClick={saveSurveyData}
           disabled={saving}
-          className="flex-1 bg-orange-500 text-white py-3 rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-orange-600 hover:to-orange-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md flex items-center justify-center gap-2"
         >
-          {saving ? 'Saving...' : 'Save Survey Data'}
+          {saving ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <TranslatedText>Saving...</TranslatedText>
+            </>
+          ) : (
+            <>
+              {/* <span>💾</span> */}
+              <TranslatedText>Save Survey Data</TranslatedText>
+            </>
+          )}
         </button>
         <button
           onClick={clearSurveyData}
           disabled={saving}
-          className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors disabled:opacity-50"
+          className="flex-1 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:from-gray-300 hover:to-gray-400 transition-all duration-200 disabled:opacity-50 shadow-sm hover:shadow-md flex items-center justify-center gap-2"
         >
-          Clear All
+          {/* <span>🗑️</span> */}
+          <TranslatedText>Clear All</TranslatedText>
         </button>
-      </div>
-
-      {/* Required Fields Note */}
-      <div className="text-xs text-gray-500 text-center">
-        * Fields marked with asterisk are required for better voter profiling
       </div>
     </div>
   );

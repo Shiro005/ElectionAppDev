@@ -11,8 +11,6 @@ import {
   query,
   where,
   writeBatch,
-  updateDoc,
-  getDoc,
   deleteField
 } from 'firebase/firestore';
 import { 
@@ -23,14 +21,14 @@ import {
   FiMail, 
   FiMapPin,
   FiBarChart2,
-  FiEdit,
   FiTrash2,
-  FiCheck,
-  FiX,
   FiHome,
   FiPhoneCall,
-  FiUser
+  FiUser,
+  FiSearch,
+  FiX
 } from 'react-icons/fi';
+import TranslatedText from './TranslatedText';
 
 const Team = () => {
   const [karyakartas, setKaryakartas] = useState([]);
@@ -179,73 +177,85 @@ const Team = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-100 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
-          <p className="text-orange-600 font-medium">Loading team data...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium"><TranslatedText>Loading team data...</TranslatedText></p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-100 pb-8">
+    <div className="min-h-screen bg-white pb-8">
       {/* Header */}
-      <div className="bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-b-3xl shadow-lg">
+      <div className="bg-white border-b border-gray-200">
         <div className="px-6 py-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
               <button 
                 onClick={() => navigate(-1)} 
-                className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-all"
+                className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200 transition-all duration-200"
               >
-                <FiArrowLeft className="text-white text-lg" />
+                <FiArrowLeft className="text-gray-700 text-lg" />
               </button>
               <div>
-                <h1 className="text-2xl font-bold">Team Management</h1>
-                <p className="text-orange-100">Manage your karyakartas and their assignments</p>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  <TranslatedText>Team Management</TranslatedText>
+                </h1>
+                <p className="text-gray-500 text-sm">
+                  <TranslatedText>Manage your karyakartas and their assignments</TranslatedText>
+                </p>
               </div>
             </div>
             <button 
               onClick={() => setShowAddModal(true)}
-              className="bg-white text-orange-600 px-6 py-3 rounded-xl font-semibold hover:bg-orange-50 transition-all shadow-lg flex items-center gap-2"
+              className="bg-orange-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-600 transition-all duration-200 shadow-sm flex items-center gap-2"
             >
-              <FiUserPlus />
-              Add Karyakarta
+              <FiUserPlus size={18} />
+              <TranslatedText>Add Karyakarta</TranslatedText>
             </button>
           </div>
 
           {/* Search Bar */}
-          <div className="relative mb-6">
-            <FiUsers className="absolute left-4 top-4 text-orange-300 text-lg" />
+          <div className="relative mb-6 max-w-2xl">
+            <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
             <input
               type="text"
               placeholder="Search karyakartas by name, phone, or area..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-4 bg-white/20 backdrop-blur-sm rounded-2xl border border-white/30 text-white placeholder-orange-200 focus:outline-none focus:ring-2 focus:ring-white/50 text-lg"
+              className="w-full pl-12 pr-4 py-3 bg-gray-50 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200"
             />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <FiX size={18} />
+              </button>
+            )}
           </div>
 
           {/* Team Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 border border-white/30">
-              <div className="text-2xl font-bold">{karyakartas.length}</div>
-              <div className="text-orange-100 text-sm">Total Karyakartas</div>
+            <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+              <div className="text-2xl font-bold text-gray-900">{karyakartas.length}</div>
+              <div className="text-gray-600 text-sm"><TranslatedText>Total Karyakartas</TranslatedText></div>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 border border-white/30">
-              <div className="text-2xl font-bold">{activeKaryakartas.length}</div>
-              <div className="text-orange-100 text-sm">Active Workers</div>
+            <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+              <div className="text-2xl font-bold text-gray-900">{activeKaryakartas.length}</div>
+              <div className="text-gray-600 text-sm"><TranslatedText>Active Workers</TranslatedText></div>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 border border-white/30">
-              <div className="text-2xl font-bold">
+            <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+              <div className="text-2xl font-bold text-gray-900">
                 {booths.filter(b => b.assignedKaryakarta).length}
               </div>
-              <div className="text-orange-100 text-sm">Assigned Booths</div>
+              <div className="text-gray-600 text-sm"><TranslatedText>Assigned Booths</TranslatedText></div>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 border border-white/30">
-              <div className="text-2xl font-bold">{unassignedKaryakartas.length}</div>
-              <div className="text-orange-100 text-sm">Available</div>
+            <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+              <div className="text-2xl font-bold text-gray-900">{unassignedKaryakartas.length}</div>
+              <div className="text-gray-600 text-sm"><TranslatedText>Available</TranslatedText></div>
             </div>
           </div>
         </div>
@@ -253,36 +263,40 @@ const Team = () => {
 
       <div className="p-6 space-y-6">
         {/* Karyakartas Grid */}
-        <div className="bg-white rounded-3xl shadow-lg border border-orange-200 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              <FiUsers className="text-orange-600" />
-              Karyakartas ({filteredKaryakartas.length})
+              <FiUsers className="text-orange-500" />
+              <TranslatedText>Karyakartas</TranslatedText> ({filteredKaryakartas.length})
             </h2>
             <div className="flex gap-2">
               <button 
                 onClick={() => setSearchTerm('')}
-                className="px-4 py-2 bg-orange-100 text-orange-700 rounded-xl font-medium hover:bg-orange-200 transition-all text-sm"
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-all duration-200 text-sm"
               >
-                Clear Search
+                <TranslatedText>Clear Search</TranslatedText>
               </button>
             </div>
           </div>
           
           {filteredKaryakartas.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
-              <FiUsers className="inline text-6xl mb-4 text-gray-300" />
+              <FiUsers className="inline text-4xl mb-4 text-gray-300" />
               <p className="text-lg font-semibold mb-2">
-                {searchTerm ? 'No karyakartas found' : 'No karyakartas added yet'}
+                <TranslatedText>
+                  {searchTerm ? 'No karyakartas found' : 'No karyakartas added yet'}
+                </TranslatedText>
               </p>
-              <p className="text-gray-400 mb-4">
-                {searchTerm ? 'Try adjusting your search terms' : 'Start by adding your first karyakarta'}
+              <p className="text-gray-400 mb-4 text-sm">
+                <TranslatedText>
+                  {searchTerm ? 'Try adjusting your search terms' : 'Start by adding your first karyakarta'}
+                </TranslatedText>
               </p>
               <button 
                 onClick={() => setShowAddModal(true)}
-                className="bg-orange-500 text-white px-6 py-3 rounded-xl font-semibold hover:bg-orange-600 transition-all"
+                className="bg-orange-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-600 transition-all duration-200 shadow-sm"
               >
-                Add First Karyakarta
+                <TranslatedText>Add First Karyakarta</TranslatedText>
               </button>
             </div>
           ) : (
@@ -290,40 +304,40 @@ const Team = () => {
               {filteredKaryakartas.map((karyakarta) => {
                 const stats = getKaryakartaStats(karyakarta.id);
                 return (
-                  <div key={karyakarta.id} className="border border-gray-200 rounded-2xl p-4 hover:border-orange-300 hover:shadow-lg transition-all bg-white">
+                  <div key={karyakarta.id} className="border border-gray-200 rounded-lg p-4 hover:border-orange-300 hover:shadow-md transition-all duration-200 bg-white group">
                     {/* Header */}
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                          <FiUser className="text-orange-600" />
+                        <div className="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center group-hover:bg-orange-100 transition-colors">
+                          <FiUser className="text-orange-500" size={20} />
                         </div>
                         <div>
                           <h3 className="font-bold text-gray-900 text-lg">{karyakarta.name}</h3>
                           <p className="text-gray-600 text-sm flex items-center gap-1">
                             <FiMapPin className="text-orange-500" size={12} />
-                            {karyakarta.area || 'No area assigned'}
+                            {karyakarta.area || <TranslatedText>No area assigned</TranslatedText>}
                           </p>
                         </div>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         stats.assignedBooths > 0 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-gray-100 text-gray-800'
+                          ? 'bg-green-50 text-green-700 border border-green-200' 
+                          : 'bg-gray-50 text-gray-700 border border-gray-200'
                       }`}>
-                        {stats.assignedBooths > 0 ? 'Active' : 'Available'}
+                        {stats.assignedBooths > 0 ? <TranslatedText>Active</TranslatedText> : <TranslatedText>Available</TranslatedText>}
                       </span>
                     </div>
                     
                     {/* Contact Info */}
                     <div className="space-y-2 text-sm text-gray-600 mb-4">
                       <div className="flex items-center gap-2">
-                        <FiPhone className="text-blue-500" />
+                        <FiPhone className="text-blue-500" size={14} />
                         <span className="font-medium">{karyakarta.phone}</span>
                       </div>
                       {karyakarta.email && (
                         <div className="flex items-center gap-2">
-                          <FiMail className="text-purple-500" />
-                          <span>{karyakarta.email}</span>
+                          <FiMail className="text-purple-500" size={14} />
+                          <span className="truncate">{karyakarta.email}</span>
                         </div>
                       )}
                     </div>
@@ -333,36 +347,36 @@ const Team = () => {
                       <>
                         <div className="grid grid-cols-3 gap-2 text-center mb-3">
                           <div className="bg-blue-50 rounded-lg p-2 border border-blue-100">
-                            <div className="font-bold text-blue-700">{stats.assignedBooths}</div>
-                            <div className="text-xs text-blue-600">Booths</div>
+                            <div className="font-bold text-blue-700 text-sm">{stats.assignedBooths}</div>
+                            <div className="text-xs text-blue-600"><TranslatedText>Booths</TranslatedText></div>
                           </div>
                           <div className="bg-green-50 rounded-lg p-2 border border-green-100">
-                            <div className="font-bold text-green-700">{stats.totalVoters}</div>
-                            <div className="text-xs text-green-600">Voters</div>
+                            <div className="font-bold text-green-700 text-sm">{stats.totalVoters}</div>
+                            <div className="text-xs text-green-600"><TranslatedText>Voters</TranslatedText></div>
                           </div>
                           <div className="bg-purple-50 rounded-lg p-2 border border-purple-100">
-                            <div className="font-bold text-purple-700">{stats.progress}%</div>
-                            <div className="text-xs text-purple-600">Progress</div>
+                            <div className="font-bold text-purple-700 text-sm">{stats.progress}%</div>
+                            <div className="text-xs text-purple-600"><TranslatedText>Progress</TranslatedText></div>
                           </div>
                         </div>
 
                         {/* Progress Bar */}
                         <div className="mb-3">
                           <div className="flex justify-between text-sm text-gray-600 mb-1">
-                            <span>Voting Progress</span>
+                            <span><TranslatedText>Voting Progress</TranslatedText></span>
                             <span className="font-semibold">{stats.progress}%</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div 
-                              className="bg-gradient-to-r from-orange-400 to-amber-500 h-2 rounded-full transition-all duration-500"
+                              className="bg-gradient-to-r from-orange-400 to-orange-500 h-2 rounded-full transition-all duration-500"
                               style={{ width: `${stats.progress}%` }}
                             ></div>
                           </div>
                         </div>
                       </>
                     ) : (
-                      <div className="text-center py-3 bg-gray-50 rounded-xl mb-3">
-                        <p className="text-gray-500 text-sm">No booths assigned</p>
+                      <div className="text-center py-3 bg-gray-50 rounded-lg mb-3 border border-gray-200">
+                        <p className="text-gray-500 text-sm"><TranslatedText>No booths assigned</TranslatedText></p>
                       </div>
                     )}
 
@@ -370,14 +384,14 @@ const Team = () => {
                     <div className="flex gap-2">
                       <button 
                         onClick={() => navigate('/booths')}
-                        className="flex-1 bg-orange-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-orange-600 transition-all flex items-center justify-center gap-1"
+                        className="flex-1 bg-orange-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-orange-600 transition-all duration-200 flex items-center justify-center gap-1 shadow-sm"
                       >
                         <FiHome size={14} />
-                        Assign Booth
+                        <TranslatedText>Assign Booth</TranslatedText>
                       </button>
                       <button 
                         onClick={() => openDeleteModal(karyakarta)}
-                        className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-all"
+                        className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all duration-200 border border-red-200"
                         title="Delete Karyakarta"
                       >
                         <FiTrash2 size={16} />
@@ -392,44 +406,44 @@ const Team = () => {
 
         {/* Performance Overview */}
         {activeKaryakartas.length > 0 && (
-          <div className="bg-white rounded-3xl shadow-lg border border-orange-200 p-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <FiBarChart2 className="text-orange-600" />
-              Team Performance
+              <FiBarChart2 className="text-orange-500" />
+              <TranslatedText>Team Performance</TranslatedText>
             </h2>
             
             <div className="space-y-4">
               {activeKaryakartas.map((karyakarta) => {
                 const stats = getKaryakartaStats(karyakarta.id);
                 return (
-                  <div key={karyakarta.id} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all">
+                  <div key={karyakarta.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-all duration-200">
                     <div className="flex justify-between items-center mb-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                          <FiUser className="text-orange-600" size={14} />
+                        <div className="w-8 h-8 bg-orange-50 rounded-full flex items-center justify-center">
+                          <FiUser className="text-orange-500" size={14} />
                         </div>
                         <span className="font-semibold text-gray-900">{karyakarta.name}</span>
                       </div>
                       <div className="flex gap-4 text-sm text-gray-500">
                         <span className="flex items-center gap-1">
                           <FiHome size={14} />
-                          {stats.assignedBooths} booths
+                          {stats.assignedBooths} <TranslatedText>booths</TranslatedText>
                         </span>
                         <span className="flex items-center gap-1">
                           <FiPhoneCall size={14} />
-                          {stats.withPhoneCount} contacts
+                          {stats.withPhoneCount} <TranslatedText>contacts</TranslatedText>
                         </span>
                       </div>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
                       <div 
-                        className="bg-gradient-to-r from-orange-400 to-amber-500 h-3 rounded-full transition-all duration-500"
+                        className="bg-gradient-to-r from-orange-400 to-orange-500 h-2 rounded-full transition-all duration-500"
                         style={{ width: `${stats.progress}%` }}
                       ></div>
                     </div>
                     <div className="flex justify-between text-sm text-gray-600 mt-2">
-                      <span>{stats.totalVoted} voted of {stats.totalVoters}</span>
-                      <span className="font-semibold">{stats.progress}% complete</span>
+                      <span>{stats.totalVoted} <TranslatedText>voted of</TranslatedText> {stats.totalVoters}</span>
+                      <span className="font-semibold">{stats.progress}% <TranslatedText>complete</TranslatedText></span>
                     </div>
                   </div>
                 );
@@ -442,61 +456,65 @@ const Team = () => {
       {/* Add Karyakarta Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl">
+          <div className="bg-white rounded-lg w-full max-w-md shadow-xl">
             <div className="p-6 border-b border-gray-200">
-              <h3 className="font-bold text-gray-900 text-xl">Add New Karyakarta</h3>
-              <p className="text-gray-500 text-sm mt-1">Fill in the details to add a new team member</p>
+              <h3 className="font-bold text-gray-900 text-xl">
+                <TranslatedText>Add New Karyakarta</TranslatedText>
+              </h3>
+              <p className="text-gray-500 text-sm mt-1">
+                <TranslatedText>Fill in the details to add a new team member</TranslatedText>
+              </p>
             </div>
             
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Full Name *
+                  <TranslatedText>Full Name</TranslatedText> *
                 </label>
                 <input
                   type="text"
                   value={newKaryakarta.name}
                   onChange={(e) => setNewKaryakarta({...newKaryakarta, name: e.target.value})}
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200"
                   placeholder="Enter full name"
                 />
               </div>
               
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Phone Number *
+                  <TranslatedText>Phone Number</TranslatedText> *
                 </label>
                 <input
                   type="tel"
                   value={newKaryakarta.phone}
                   onChange={(e) => setNewKaryakarta({...newKaryakarta, phone: e.target.value})}
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200"
                   placeholder="Enter phone number"
                 />
               </div>
               
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Email Address
+                  <TranslatedText>Email Address</TranslatedText>
                 </label>
                 <input
                   type="email"
                   value={newKaryakarta.email}
                   onChange={(e) => setNewKaryakarta({...newKaryakarta, email: e.target.value})}
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200"
                   placeholder="Enter email address"
                 />
               </div>
               
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Assigned Area
+                  <TranslatedText>Assigned Area</TranslatedText>
                 </label>
                 <input
                   type="text"
                   value={newKaryakarta.area}
                   onChange={(e) => setNewKaryakarta({...newKaryakarta, area: e.target.value})}
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200"
                   placeholder="Enter assigned area/village"
                 />
               </div>
@@ -508,16 +526,16 @@ const Team = () => {
                   setShowAddModal(false);
                   setNewKaryakarta({ name: '', phone: '', email: '', area: '', assignedBooths: [] });
                 }}
-                className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-200 transition-all"
+                className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-all duration-200"
               >
-                Cancel
+                <TranslatedText>Cancel</TranslatedText>
               </button>
               <button
                 onClick={addKaryakarta}
                 disabled={!newKaryakarta.name.trim() || !newKaryakarta.phone.trim()}
-                className="flex-1 bg-orange-500 text-white py-3 rounded-xl font-semibold hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all"
+                className="flex-1 bg-orange-500 text-white py-3 rounded-lg font-semibold hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200"
               >
-                Add Karyakarta
+                <TranslatedText>Add Karyakarta</TranslatedText>
               </button>
             </div>
           </div>
@@ -527,14 +545,18 @@ const Team = () => {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && karyakartaToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl">
+          <div className="bg-white rounded-lg w-full max-w-md shadow-xl">
             <div className="p-6 border-b border-gray-200">
-              <h3 className="font-bold text-gray-900 text-xl">Delete Karyakarta</h3>
-              <p className="text-gray-500 text-sm mt-1">This action cannot be undone</p>
+              <h3 className="font-bold text-gray-900 text-xl">
+                <TranslatedText>Delete Karyakarta</TranslatedText>
+              </h3>
+              <p className="text-gray-500 text-sm mt-1">
+                <TranslatedText>This action cannot be undone</TranslatedText>
+              </p>
             </div>
             
             <div className="p-6">
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
                     <FiUser className="text-red-600" />
@@ -546,7 +568,7 @@ const Team = () => {
                 </div>
               </div>
               <p className="text-gray-700 text-center">
-                Are you sure you want to delete <strong>{karyakartaToDelete.name}</strong> from the team?
+                <TranslatedText>Are you sure you want to delete</TranslatedText> <strong>{karyakartaToDelete.name}</strong> <TranslatedText>from the team?</TranslatedText>
               </p>
             </div>
             
@@ -556,15 +578,15 @@ const Team = () => {
                   setShowDeleteModal(false);
                   setKaryakartaToDelete(null);
                 }}
-                className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-200 transition-all"
+                className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-all duration-200"
               >
-                Cancel
+                <TranslatedText>Cancel</TranslatedText>
               </button>
               <button
                 onClick={deleteKaryakarta}
-                className="flex-1 bg-red-500 text-white py-3 rounded-xl font-semibold hover:bg-red-600 transition-all"
+                className="flex-1 bg-red-500 text-white py-3 rounded-lg font-semibold hover:bg-red-600 transition-all duration-200"
               >
-                Delete
+                <TranslatedText>Delete</TranslatedText>
               </button>
             </div>
           </div>
