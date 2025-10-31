@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { db, ref, get, update } from '../Firebase/config';
+import { db } from '../Firebase/config';
+import { collection, doc, getDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { FiUsers, FiPlus, FiX, FiSearch, FiPrinter } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import TranslatedText from './TranslatedText';
@@ -36,13 +37,13 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
 
   const loadAllVoters = async () => {
     try {
-      const votersRef = ref(db, 'voters');
-      const snapshot = await get(votersRef);
-      if (snapshot.exists()) {
-        const votersData = Object.entries(snapshot.val()).map(([id, data]) => ({
-          id, ...data
-        }));
+      const votersCol = collection(db, 'voters');
+      const snapshot = await getDocs(votersCol);
+      if (!snapshot.empty) {
+        const votersData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         setAllVoters(votersData);
+      } else {
+        setAllVoters([]);
       }
     } catch (error) {
       console.error('Error loading all voters:', error);
@@ -51,21 +52,23 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
 
   const addFamilyMember = async (memberId) => {
     try {
-      const voterRef = ref(db, `voters/${voter.id}`);
-      const currentVoter = await get(voterRef);
-      const currentData = currentVoter.val();
+      const voterDocRef = doc(db, 'voters', voter.id);
+      const memberDocRef = doc(db, 'voters', memberId);
 
-      const familyMembersObj = currentData.familyMembers || {};
+      const [voterSnap, memberSnap] = await Promise.all([getDoc(voterDocRef), getDoc(memberDocRef)]);
+      const voterData = voterSnap.exists() ? voterSnap.data() : {};
+      const memberData = memberSnap.exists() ? memberSnap.data() : {};
+
+      const familyMembersObj = { ...(voterData.familyMembers || {}) };
       familyMembersObj[memberId] = true;
 
-      await update(voterRef, { familyMembers: familyMembersObj });
-
-      // Also update the member to include this voter as family
-      const memberRef = ref(db, `voters/${memberId}`);
-      const memberData = await get(memberRef);
-      const memberFamily = memberData.val().familyMembers || {};
+      const memberFamily = { ...(memberData.familyMembers || {}) };
       memberFamily[voter.id] = true;
-      await update(memberRef, { familyMembers: memberFamily });
+
+      const batch = writeBatch(db);
+      batch.update(voterDocRef, { familyMembers: familyMembersObj });
+      batch.update(memberDocRef, { familyMembers: memberFamily });
+      await batch.commit();
 
       onUpdate?.();
       setShowFamilyModal(false);
@@ -78,21 +81,23 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
 
   const removeFamilyMember = async (memberId) => {
     try {
-      const voterRef = ref(db, `voters/${voter.id}`);
-      const currentVoter = await get(voterRef);
-      const currentData = currentVoter.val();
+      const voterDocRef = doc(db, 'voters', voter.id);
+      const memberDocRef = doc(db, 'voters', memberId);
 
-      const familyMembersObj = currentData.familyMembers || {};
+      const [voterSnap, memberSnap] = await Promise.all([getDoc(voterDocRef), getDoc(memberDocRef)]);
+      const voterData = voterSnap.exists() ? voterSnap.data() : {};
+      const memberData = memberSnap.exists() ? memberSnap.data() : {};
+
+      const familyMembersObj = { ...(voterData.familyMembers || {}) };
       delete familyMembersObj[memberId];
 
-      await update(voterRef, { familyMembers: familyMembersObj });
-
-      // Also remove from the other voter
-      const memberRef = ref(db, `voters/${memberId}`);
-      const memberData = await get(memberRef);
-      const memberFamily = memberData.val().familyMembers || {};
+      const memberFamily = { ...(memberData.familyMembers || {}) };
       delete memberFamily[voter.id];
-      await update(memberRef, { familyMembers: memberFamily });
+
+      const batch = writeBatch(db);
+      batch.update(voterDocRef, { familyMembers: familyMembersObj });
+      batch.update(memberDocRef, { familyMembers: memberFamily });
+      await batch.commit();
 
       onUpdate?.();
       alert('Family member removed successfully!');

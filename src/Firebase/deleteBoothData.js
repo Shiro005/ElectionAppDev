@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, get, remove } from "firebase/database";
+import { getFirestore, collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
 
 // 🔐 Your Firebase config
 const firebaseConfig = {
@@ -15,31 +15,32 @@ const firebaseConfig = {
 
 // Initialize
 const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+const db = getFirestore(app);
 
 // 🗑️ Booth to delete
 const targetBooth = "299 Akola Kaulkhed"; // match exactly what is in DB
 
 async function deleteBoothVoters() {
   console.log(`🔍 Checking voters for booth: ${targetBooth}`);
-  const votersRef = ref(db, "voters");
-  const snapshot = await get(votersRef);
+  const votersCol = collection(db, 'voters');
+  const q = query(votersCol, where('boothNumber', '==', targetBooth));
+  const snapshot = await getDocs(q);
 
-  if (!snapshot.exists()) {
-    console.log("❌ No voters found in the database.");
+  if (snapshot.empty) {
+    console.log("❌ No voters found in the database for the specified booth.");
     return;
   }
 
-  const voters = snapshot.val();
   let deletedCount = 0;
-  let totalCount = 0;
+  let totalCount = snapshot.size;
 
-  for (const [key, voter] of Object.entries(voters)) {
-    totalCount++;
-    if (voter.boothNumber === targetBooth) {
-      await remove(ref(db, `voters/${key}`));
+  for (const docSnap of snapshot.docs) {
+    try {
+      await deleteDoc(doc(db, 'voters', docSnap.id));
       deletedCount++;
-      console.log(`🗑️ Deleted voter: ${voter.name || key}`);
+      console.log(`🗑️ Deleted voter: ${docSnap.id}`);
+    } catch (e) {
+      console.error('Failed to delete', docSnap.id, e);
     }
   }
 

@@ -1,6 +1,18 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { db, ref, onValue, off, update, get } from '../Firebase/config';
+import { db } from '../Firebase/config';
+import {
+  collection,
+  getDocs,
+  onSnapshot,
+  doc,
+  updateDoc,
+  writeBatch,
+  query,
+  where,
+  deleteDoc,
+  getDoc
+} from 'firebase/firestore';
 import * as XLSX from 'xlsx';
 import { 
   FiArrowLeft, 
@@ -479,70 +491,65 @@ const BoothListView = ({ onBoothSelect, loadingBoothDetail, onViewVoterDetails }
     setRefreshing(true);
     
     try {
-      await firebaseLoadBalancer.execute(async () => {
-        const votersRef = ref(db, 'voters');
-        const karyakartasRef = ref(db, 'karyakartas');
-        const boothsRef = ref(db, 'booths');
-        
-        const unsubscribeVoters = onValue(votersRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const votersData = processVoterData(snapshot.val());
-            setVoters(votersData);
-            
-            const boothsData = createBoothsFromVoters(votersData);
-            
-            const unsubscribeBooths = onValue(boothsRef, (boothSnapshot) => {
-              if (boothSnapshot.exists()) {
-                const boothAssignments = boothSnapshot.val();
-                
-                const updatedBooths = boothsData.map(booth => {
-                  const assignment = boothAssignments[booth.id];
-                  if (assignment) {
-                    return {
-                      ...booth,
-                      assignedKaryakarta: assignment.assignedKaryakarta || '',
-                      karyakartaName: assignment.karyakartaName || '',
-                      karyakartaPhone: assignment.karyakartaPhone || '',
-                    };
-                  }
-                  return booth;
-                });
-                
-                setBooths(updatedBooths);
-              } else {
-                setBooths(boothsData);
-              }
-              setLoading(false);
-              setRefreshing(false);
-            });
+      // Fetch voters, booths and karyakartas once (use getDocs for offline cache support)
+      const [votersSnap, boothsSnap, karyakartasSnap] = await Promise.all([
+        getDocs(collection(db, 'voters')),
+        getDocs(collection(db, 'booths')),
+        getDocs(collection(db, 'karyakartas'))
+      ]);
 
-            return () => off(boothsRef, 'value', unsubscribeBooths);
-          } else {
-            setVoters([]);
-            setBooths([]);
-            setLoading(false);
-            setRefreshing(false);
+      const votersData = votersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setVoters(votersData.map(v => ({
+        id: v.id,
+        name: v.name || 'Unknown Voter',
+        voterId: v.voterId || 'N/A',
+        pollingStationAddress: v.pollingStationAddress || v.address || 'Unknown Address',
+        village: v.village || 'Unknown Area',
+        phone: v.phone || '',
+        voted: v.voted || false,
+        hasVoted: v.hasVoted || false,
+        houseNumber: v.houseNumber || '',
+        assignedKaryakarta: v.assignedKaryakarta || '',
+        age: v.age || '',
+        gender: v.gender || '',
+        serialNumber: v.serialNumber || '',
+        boothNumber: v.boothNumber || '',
+        supportStatus: v.supportStatus || 'unknown',
+        survey: v.survey || {},
+        familyMembers: v.familyMembers || {}
+      })));
+
+      const boothsData = createBoothsFromVoters(votersData.map(v => ({ id: v.id, ...v })));
+
+      if (!boothsSnap.empty) {
+        const boothAssignments = {};
+        boothsSnap.forEach(b => { boothAssignments[b.id] = b.data(); });
+        const updatedBooths = boothsData.map(booth => {
+          const assignment = boothAssignments[booth.id];
+          if (assignment) {
+            return {
+              ...booth,
+              assignedKaryakarta: assignment.assignedKaryakarta || '',
+              karyakartaName: assignment.karyakartaName || '',
+              karyakartaPhone: assignment.karyakartaPhone || ''
+            };
           }
+          return booth;
         });
+        setBooths(updatedBooths);
+      } else {
+        setBooths(boothsData);
+      }
 
-        const unsubscribeKaryakartas = onValue(karyakartasRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const karyakartasData = Object.entries(snapshot.val()).map(([key, value]) => ({
-              id: key,
-              name: value.name || 'Unknown Karyakarta',
-              phone: value.phone || '',
-            }));
-            setKaryakartas(karyakartasData);
-          } else {
-            setKaryakartas([]);
-          }
-        });
+      if (!karyakartasSnap.empty) {
+        const karyakartasData = karyakartasSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setKaryakartas(karyakartasData);
+      } else {
+        setKaryakartas([]);
+      }
 
-        return () => {
-          off(votersRef, 'value', unsubscribeVoters);
-          off(karyakartasRef, 'value', unsubscribeKaryakartas);
-        };
-      });
+      setLoading(false);
+      setRefreshing(false);
     } catch (error) {
       console.error('Error loading data:', error);
       setLoading(false);
@@ -557,15 +564,14 @@ const BoothListView = ({ onBoothSelect, loadingBoothDetail, onViewVoterDetails }
   const exportAllVoters = async () => {
     setExportLoading(true);
     try {
-      const votersRef = ref(db, 'voters');
-      const snapshot = await get(votersRef);
-      if (!snapshot.exists()) return;
+      const snapshot = await getDocs(collection(db, 'voters'));
+      if (snapshot.empty) return;
 
       const allVoters = [];
-      snapshot.forEach((child) => {
-        const voter = child.val();
+      snapshot.forEach((doc) => {
+        const voter = doc.data();
         const survey = voter.survey || {};
-        
+
         allVoters.push({
           'Serial Number': voter.serialNumber || '',
           'Voter ID': voter.voterId || '',
@@ -628,34 +634,36 @@ const BoothListView = ({ onBoothSelect, loadingBoothDetail, onViewVoterDetails }
     try {
       await firebaseLoadBalancer.execute(async () => {
         const karyakarta = karyakartas.find(k => k.id === selectedKaryakarta);
-        
+
         if (!karyakarta) {
           setMessage('Selected karyakarta not found');
           return;
         }
 
-        const updates = {};
         const boothId = currentBooth.id;
 
-        updates[`booths/${boothId}`] = {
+        const batch = writeBatch(db);
+
+        // Update or create booth assignment (merge semantics)
+        const boothRef = doc(db, 'booths', boothId);
+        batch.set(boothRef, {
           assignedKaryakarta: selectedKaryakarta,
           karyakartaName: karyakarta.name,
           karyakartaPhone: karyakarta.phone,
           pollingStationAddress: currentBooth.pollingStationAddress,
           village: currentBooth.village,
           lastUpdated: new Date().toISOString()
-        };
-
-        const boothVoters = voters.filter(voter => 
-          createSafeId(voter.pollingStationAddress) === boothId
-        );
-        
-        boothVoters.forEach(voter => {
-          updates[`voters/${voter.id}/assignedKaryakarta`] = selectedKaryakarta;
         });
 
-        await update(ref(db), updates);
-        
+        const boothVoters = voters.filter(voter => createSafeId(voter.pollingStationAddress) === boothId);
+
+        boothVoters.forEach(voter => {
+          const voterRef = doc(db, 'voters', voter.id);
+          batch.update(voterRef, { assignedKaryakarta: selectedKaryakarta });
+        });
+
+        await batch.commit();
+
         setBooths(prev => prev.map(booth => 
           booth.id === boothId 
             ? {
@@ -671,7 +679,7 @@ const BoothListView = ({ onBoothSelect, loadingBoothDetail, onViewVoterDetails }
         setSelectedKaryakarta('');
         setCurrentBooth(null);
         setMessage(`✅ ${karyakarta.name} assigned successfully!`);
-        
+
         setTimeout(() => setMessage(''), 3000);
       });
     } catch (error) {
@@ -1052,35 +1060,34 @@ const BoothDetailView = ({ booth, onBack, onViewVoterDetails }) => {
       setLoadingVoters(false);
     }, 1000);
 
-    const votersRef = ref(db, 'voters');
-    const unsubscribe = onValue(votersRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const votersData = Object.entries(snapshot.val()).map(([key, value]) => ({
-          id: key,
-          name: value.name || 'Unknown Voter',
-          voterId: value.voterId || 'N/A',
-          pollingStationAddress: value.pollingStationAddress || value.address || 'Unknown Address',
-          village: value.village || 'Unknown Area',
-          phone: value.phone || '',
-          voted: value.voted || false,
-          hasVoted: value.hasVoted || false,
-          houseNumber: value.houseNumber || '',
-          assignedKaryakarta: value.assignedKaryakarta || '',
-          age: value.age || '',
-          gender: value.gender || '',
-          serialNumber: value.serialNumber || '',
-          boothNumber: value.boothNumber || '',
-          supportStatus: value.supportStatus || 'unknown',
-          survey: value.survey || {},
-          familyMembers: value.familyMembers || {}
-        }));
+    const unsubscribe = onSnapshot(collection(db, 'voters'), (snapshot) => {
+      const votersData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        const boothVoters = votersData.filter(voter => 
-          voter.pollingStationAddress === booth.pollingStationAddress
-        );
-        
-        setVoters(boothVoters);
-      }
+      const boothVoters = votersData.filter(voter => 
+        voter.pollingStationAddress === booth.pollingStationAddress
+      );
+
+      setVoters(boothVoters.map(v => ({
+        id: v.id,
+        name: v.name || 'Unknown Voter',
+        voterId: v.voterId || 'N/A',
+        pollingStationAddress: v.pollingStationAddress || v.address || 'Unknown Address',
+        village: v.village || 'Unknown Area',
+        phone: v.phone || '',
+        voted: v.voted || false,
+        hasVoted: v.hasVoted || false,
+        houseNumber: v.houseNumber || '',
+        assignedKaryakarta: v.assignedKaryakarta || '',
+        age: v.age || '',
+        gender: v.gender || '',
+        serialNumber: v.serialNumber || '',
+        boothNumber: v.boothNumber || '',
+        supportStatus: v.supportStatus || 'unknown',
+        survey: v.survey || {},
+        familyMembers: v.familyMembers || {}
+      })));
+    }, (error) => {
+      console.error('Error listening to voters collection:', error);
     });
 
     return () => {
@@ -1094,7 +1101,8 @@ const BoothDetailView = ({ booth, onBack, onViewVoterDetails }) => {
       const newVotedStatus = !currentStatus;
       
       await firebaseLoadBalancer.execute(async () => {
-        await update(ref(db, `voters/${voterId}`), {
+        const voterRef = doc(db, 'voters', voterId);
+        await updateDoc(voterRef, {
           voted: newVotedStatus,
           hasVoted: newVotedStatus
         });
@@ -1167,15 +1175,16 @@ const BoothDetailView = ({ booth, onBack, onViewVoterDetails }) => {
   const deleteBoothAndVoters = useCallback(async () => {
     try {
       await firebaseLoadBalancer.execute(async () => {
-        const updates = {};
-        
-        updates[`booths/${booth.id}`] = null;
-        
+        const batch = writeBatch(db);
+
+        const boothRef = doc(db, 'booths', booth.id);
+        batch.delete(boothRef);
+
         booth.voters.forEach(voter => {
-          updates[`voters/${voter.id}`] = null;
+          batch.delete(doc(db, 'voters', voter.id));
         });
-        
-        await update(ref(db), updates);
+
+        await batch.commit();
       });
       
       alert('Booth and all voters deleted successfully!');

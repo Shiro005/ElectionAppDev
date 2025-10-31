@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import debounce from 'lodash.debounce';
-import { db, ref, onValue, off } from '../Firebase/config';
+import { db } from '../Firebase/config';
+import { collection, onSnapshot } from 'firebase/firestore';
 import {
   FiFilter,
   FiUsers,
@@ -38,6 +39,7 @@ const FilterPage = () => {
   const [exportPassword, setExportPassword] = useState('');
   const [exportError, setExportError] = useState('');
   const [isMobile, setIsMobile] = useState(false);
+  const votersUnsubRef = useRef(null);
 
   // Use filter keys matching UI categories to avoid mismatches
   const [filters, setFilters] = useState({
@@ -162,9 +164,9 @@ const FilterPage = () => {
         try { cacheObj = JSON.parse(cachedRaw); } catch { cacheObj = null; }
       }
 
-      const votersRef = ref(db, 'voters');
+  const votersCol = collection(db, 'voters');
 
-      // If connection is slow or offline, try using cache first
+  // If connection is slow or offline, try using cache first
       const slowTypes = ['2g', 'slow-2g'];
       const isSlow = connectionInfo && slowTypes.includes(connectionInfo.effectiveType);
       if ((!isOnline || isSlow) && cacheObj && !forceRefresh) {
@@ -175,9 +177,10 @@ const FilterPage = () => {
       }
 
       // subscribe to live updates; when data arrives, update cache
-      onValue(votersRef, (snapshot) => {
-        if (snapshot.exists()) {
-          const raw = snapshot.val();
+      const unsubscribe = onSnapshot(votersCol, (snapshot) => {
+        if (!snapshot.empty) {
+          const raw = {};
+          snapshot.forEach(d => { raw[d.id] = d.data(); });
           const processed = processVoterData(raw);
           setVoters(processed);
           try {
@@ -203,6 +206,9 @@ const FilterPage = () => {
         setLoading(false);
         setRefreshing(false);
       });
+
+      // keep unsubscribe in ref for cleanup
+      votersUnsubRef.current = unsubscribe;
     } catch (err) {
       console.error('Error loading voters:', err);
       setLoading(false);
@@ -213,8 +219,9 @@ const FilterPage = () => {
   useEffect(() => {
     loadVoters();
     return () => {
-      const votersRef = ref(db, 'voters');
-      off(votersRef);
+      if (votersUnsubRef.current) {
+        try { votersUnsubRef.current(); } catch {};
+      }
     };
   }, [loadVoters]);
 

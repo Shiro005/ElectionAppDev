@@ -1,6 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { db, ref, onValue, off, update, remove } from '../Firebase/config';
+import { db } from '../Firebase/config';
+import {
+  collection,
+  onSnapshot,
+  getDocs,
+  doc,
+  setDoc,
+  deleteDoc,
+  query,
+  where,
+  writeBatch,
+  updateDoc,
+  getDoc,
+  deleteField
+} from 'firebase/firestore';
 import { 
   FiArrowLeft, 
   FiUsers, 
@@ -37,39 +51,34 @@ const Team = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const karyakartasRef = ref(db, 'karyakartas');
-    const boothsRef = ref(db, 'booths');
+    const karyakartasCol = collection(db, 'karyakartas');
+    const boothsCol = collection(db, 'booths');
 
-    const unsubscribeKaryakartas = onValue(karyakartasRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        const karyakartasList = Object.keys(data).map(key => ({
-          id: key,
-          ...data[key]
-        }));
-        setKaryakartas(karyakartasList);
+    const unsubscribeKaryakartas = onSnapshot(karyakartasCol, (snapshot) => {
+      if (!snapshot.empty) {
+        const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setKaryakartas(list);
       } else {
         setKaryakartas([]);
       }
       setLoading(false);
+    }, (err) => {
+      console.error('karyakartas snapshot error', err);
+      setLoading(false);
     });
 
-    const unsubscribeBooths = onValue(boothsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        const boothsList = Object.keys(data).map(key => ({
-          id: key,
-          ...data[key]
-        }));
-        setBooths(boothsList);
+    const unsubscribeBooths = onSnapshot(boothsCol, (snapshot) => {
+      if (!snapshot.empty) {
+        const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setBooths(list);
       } else {
         setBooths([]);
       }
-    });
+    }, (err) => console.error('booths snapshot error', err));
 
     return () => {
-      off(karyakartasRef, 'value', unsubscribeKaryakartas);
-      off(boothsRef, 'value', unsubscribeBooths);
+      try { unsubscribeKaryakartas(); } catch (e) {}
+      try { unsubscribeBooths(); } catch (e) {}
     };
   }, []);
 
@@ -81,9 +90,8 @@ const Team = () => {
 
     try {
       const karyakartaId = `karyakarta_${Date.now()}`;
-      const updates = {};
-      
-      updates[`karyakartas/${karyakartaId}`] = {
+      const docRef = doc(db, 'karyakartas', karyakartaId);
+      await setDoc(docRef, {
         id: karyakartaId,
         name: newKaryakarta.name.trim(),
         phone: newKaryakarta.phone.trim(),
@@ -92,9 +100,8 @@ const Team = () => {
         assignedBooths: [],
         createdAt: new Date().toISOString(),
         status: 'active'
-      };
+      });
 
-      await update(ref(db), updates);
       setShowAddModal(false);
       setNewKaryakarta({ name: '', phone: '', email: '', area: '', assignedBooths: [] });
       alert('✅ Karyakarta added successfully!');
@@ -108,21 +115,23 @@ const Team = () => {
     if (!karyakartaToDelete) return;
 
     try {
-      // Remove karyakarta from karyakartas node
-      await remove(ref(db, `karyakartas/${karyakartaToDelete.id}`));
+      // Delete karyakarta doc
+      await deleteDoc(doc(db, 'karyakartas', karyakartaToDelete.id));
 
-      // Remove karyakarta assignment from all booths
-      const updates = {};
-      const assignedBooths = booths.filter(booth => booth.assignedKaryakarta === karyakartaToDelete.id);
-      
-      assignedBooths.forEach(booth => {
-        updates[`booths/${booth.id}/assignedKaryakarta`] = null;
-        updates[`booths/${booth.id}/karyakartaName`] = null;
-        updates[`booths/${booth.id}/karyakartaPhone`] = null;
-      });
-
-      if (Object.keys(updates).length > 0) {
-        await update(ref(db), updates);
+      // Unassign from booths using a batch update
+      const q = query(collection(db, 'booths'), where('assignedKaryakarta', '==', karyakartaToDelete.id));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        const batch = writeBatch(db);
+        snapshot.forEach(bdoc => {
+          const bref = doc(db, 'booths', bdoc.id);
+          batch.update(bref, {
+            assignedKaryakarta: deleteField(),
+            karyakartaName: deleteField(),
+            karyakartaPhone: deleteField()
+          });
+        });
+        await batch.commit();
       }
 
       setShowDeleteModal(false);

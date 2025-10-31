@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { db, ref, get, update } from '../Firebase/config';
+import { db } from '../Firebase/config';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import VoterSurvey from './VoterSurvey';
 import FamilyManagement from './FamilyManagement';
 import BluetoothPrinter from './BluetoothPrinter';
@@ -55,46 +56,49 @@ const FullVoterDetails = () => {
     setError(null);
 
     try {
-      const voterRef = ref(db, `voters/${voterId}`);
-      const snapshot = await get(voterRef);
+      const voterRef = doc(db, 'voters', voterId);
+      const docSnap = await Promise.race([
+        getDoc(voterRef),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 15000)) // 15s timeout
+      ]);
 
-      if (snapshot.exists()) {
-        const voterData = { id: voterId, ...snapshot.val() };
-        setVoter(voterData);
+      if (!abortControllerRef.current || !abortControllerRef.current.signal.aborted) {
+        if (docSnap.exists && typeof docSnap.exists === 'function' ? docSnap.exists() : docSnap.exists) {
+          const data = docSnap.data ? docSnap.data() : {};
+          const voterData = { id: voterId, ...data };
+          setVoter(voterData);
 
-        // Load family members only if they exist and not in low bandwidth mode
-        if (voterData.familyMembers && Object.keys(voterData.familyMembers).length > 0) {
-          // For low internet speed, load family members sequentially with timeout
-          const members = [];
-          const memberIds = Object.keys(voterData.familyMembers);
-          
-          for (const memberId of memberIds) {
-            try {
-              const memberRef = ref(db, `voters/${memberId}`);
-              const memberSnapshot = await Promise.race([
-                get(memberRef),
-                new Promise((_, reject) => 
-                  setTimeout(() => reject(new Error('Timeout')), 10000) // 10 second timeout
-                )
-              ]);
-              
-              if (memberSnapshot.exists()) {
-                members.push({ id: memberId, ...memberSnapshot.val() });
+          // Load family members only if they exist
+          if (voterData.familyMembers && Object.keys(voterData.familyMembers).length > 0) {
+            const members = [];
+            const memberIds = Object.keys(voterData.familyMembers);
+
+            for (const memberId of memberIds) {
+              try {
+                const memberRef = doc(db, 'voters', memberId);
+                const memberDoc = await Promise.race([
+                  getDoc(memberRef),
+                  new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+                ]);
+
+                if (memberDoc && (typeof memberDoc.exists === 'function' ? memberDoc.exists() : memberDoc.exists)) {
+                  members.push({ id: memberId, ...(memberDoc.data ? memberDoc.data() : {}) });
+                }
+              } catch (memberError) {
+                console.warn(`Failed to load family member ${memberId}:`, memberError);
+                // Continue with other members even if one fails
               }
-            } catch (memberError) {
-              console.warn(`Failed to load family member ${memberId}:`, memberError);
-              // Continue with other members even if one fails
             }
+
+            setFamilyMembers(members);
+          } else {
+            setFamilyMembers([]);
           }
-          
-          setFamilyMembers(members);
+
+          setRetryCount(0);
         } else {
-          setFamilyMembers([]);
+          setVoter(null);
         }
-        
-        setRetryCount(0); // Reset retry count on success
-      } else {
-        setVoter(null);
       }
     } catch (error) {
       if (error.name === 'AbortError') {
@@ -123,12 +127,11 @@ const FullVoterDetails = () => {
 
   const updateVoterField = useCallback(async (field, value) => {
     try {
-      const voterRef = ref(db, `voters/${voterId}`);
-      
       // Optimistic update for better UX on slow networks
       setVoter(prev => ({ ...prev, [field]: value }));
       
-      await update(voterRef, { [field]: value });
+      const voterDocRef = doc(db, 'voters', voterId);
+      await updateDoc(voterDocRef, { [field]: value });
     } catch (error) {
       console.error('Error updating voter:', error);
       // Revert optimistic update on error

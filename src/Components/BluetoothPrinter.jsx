@@ -4,7 +4,8 @@ import { FaWhatsapp, FaRegFilePdf } from 'react-icons/fa';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import TranslatedText from './TranslatedText';
-import { getDatabase, ref, set, get } from 'firebase/database';
+import { db } from '../Firebase/config';
+import { doc, setDoc } from 'firebase/firestore';
 
 // Global Bluetooth connection state (same as original)
 let globalBluetoothConnection = {
@@ -458,9 +459,10 @@ const BluetoothPrinter = ({ voter, familyMembers, candidateInfo }) => {
 
   const saveWhatsAppNumber = async (number) => {
     try {
-      const db = getDatabase();
-      const voterRef = ref(db, `voters/${voter.voterId}/whatsapp`);
-      await set(voterRef, number);
+      const docId = voter?.id || voter?.voterId;
+      if (!docId) throw new Error('Voter id not available');
+      const voterDocRef = doc(db, 'voters', String(docId));
+      await setDoc(voterDocRef, { whatsapp: number }, { merge: true });
       return true;
     } catch (error) {
       console.error('Error saving WhatsApp number:', error);

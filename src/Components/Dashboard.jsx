@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import debounce from 'lodash.debounce';
-import { db, ref, get, onValue } from '../Firebase/config';
+import { db } from '../Firebase/config';
+import { collection, getDocs, onSnapshot } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
 import useAutoTranslate from '../hooks/useAutoTranslate';
 
@@ -62,23 +63,34 @@ const Dashboard = () => {
   const loadVoters = useCallback(async (page = 1, search = '', filter = {}) => {
     try {
       setLoading(true);
-      const votersRef = ref(db, 'voters');
-      const snapshot = await get(votersRef);
-      
-      if (snapshot.exists()) {
-        const allVoters = [];
-        snapshot.forEach((childSnapshot) => {
-          const raw = childSnapshot.val();
+      const votersCol = collection(db, 'voters');
+      const snapshot = await getDocs(votersCol);
+
+      const allVoters = [];
+      if (!snapshot.empty) {
+        snapshot.forEach((doc) => {
+          const raw = doc.data();
           allVoters.push({
-            id: childSnapshot.key,
+            id: doc.id,
             name: raw.name || raw.Name || '',
             voterId: raw.voterId || raw.VoterId || '',
             boothNumber: raw.boothNumber,
             pollingStationAddress: raw.pollingStationAddress,
             age: raw.age,
-            gender: raw.gender
+            gender: raw.gender,
+            // include survey and other nested fields if present
+            survey: raw.survey || {},
+            serialNumber: raw.serialNumber || '',
+            address: raw.address || '',
+            houseNumber: raw.houseNumber || '',
+            phone: raw.phone || '',
+            hasVoted: raw.hasVoted,
+            familyMembers: raw.familyMembers,
+            supportStatus: raw.supportStatus || '',
+            assignedKaryakarta: raw.assignedKaryakarta || ''
           });
         });
+      }
 
         // Apply search filter with improved logic
         let filteredVoters = allVoters;
@@ -123,10 +135,6 @@ const Dashboard = () => {
         
         setVoters(paginatedVoters);
         setCurrentPage(page);
-      } else {
-        setVoters([]);
-        setTotalCount(0);
-      }
     } catch (error) {
       console.error('Error loading voters:', error);
       setVoters([]);
@@ -148,13 +156,13 @@ const Dashboard = () => {
 
   // Build booths list from voters in realtime
   useEffect(() => {
-    const boothsRef = ref(db, 'voters');
-    const unsubscribe = onValue ? onValue(boothsRef, (snapshot) => {
+    const q = collection(db, 'voters');
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const map = new Map();
-      if (snapshot.exists()) {
-        snapshot.forEach(child => {
-          const v = child.val();
-          const b = v.boothNumber ? String(v.boothNumber) : null;
+      if (!snapshot.empty) {
+        snapshot.forEach(doc => {
+          const v = doc.data();
+          const b = v && v.boothNumber ? String(v.boothNumber) : null;
           if (!b) return;
           if (!map.has(b)) {
             map.set(b, { number: b, name: v.pollingStationAddress || `Booth ${b}`, count: 1 });
@@ -165,10 +173,11 @@ const Dashboard = () => {
       }
       const list = Array.from(map.values()).sort((a, b) => a.number.localeCompare(b.number));
       setBoothsList(list);
-    }) : null;
+    }, (err) => {
+      console.error('Booths snapshot error:', err);
+    });
 
     return () => {
-      // remove Firebase listener if available
       try { if (unsubscribe && typeof unsubscribe === 'function') unsubscribe(); } catch (e) {}
     };
   }, []);
@@ -204,7 +213,7 @@ const Dashboard = () => {
 
   const verifyPasswordAndExport = useCallback(async () => {
     if (exportPassword === 'admin123') {
-      await exportToExcel();
+      await exportAllVoters();
       setShowExportModal(false);
       setExportPassword('');
       setPasswordError('');
@@ -216,16 +225,15 @@ const Dashboard = () => {
   const exportAllVoters = async () => {
     setLoading(true);
     try {
-      const votersRef = ref(db, 'voters');
-      const snapshot = await get(votersRef);
-      if (!snapshot.exists()) return;
+      const votersCol = collection(db, 'voters');
+      const snapshot = await getDocs(votersCol);
+      if (snapshot.empty) return;
 
       const allVoters = [];
-      snapshot.forEach((child) => {
-        const voter = child.val();
-        // Get survey data if exists
-        const survey = voter.survey || {};
-        
+      snapshot.forEach((doc) => {
+        const voter = doc.data();
+        const survey = voter?.survey || {};
+
         allVoters.push({
           'Serial Number': voter.serialNumber || '',
           'Voter ID': voter.voterId || '',

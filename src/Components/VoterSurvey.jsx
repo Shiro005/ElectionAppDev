@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { db, ref, update } from '../Firebase/config';
+import { db } from '../Firebase/config';
+import { doc, updateDoc } from 'firebase/firestore';
 
 const VoterSurvey = ({ voter, onUpdate }) => {
   const [surveyData, setSurveyData] = useState({
@@ -64,8 +65,8 @@ const VoterSurvey = ({ voter, onUpdate }) => {
     
     setSaving(true);
     try {
-      const voterRef = ref(db, `voters/${voter.id}`);
-      await update(voterRef, surveyData);
+      const voterDocRef = doc(db, 'voters', voter.id);
+      await updateDoc(voterDocRef, surveyData);
       alert('Survey data saved successfully!');
       onUpdate?.();
     } catch (error) {
@@ -82,13 +83,10 @@ const VoterSurvey = ({ voter, onUpdate }) => {
 
     setSaving(true);
     try {
-      const voterRef = ref(db, `voters/${voter.id}`);
+      const voterDocRef = doc(db, 'voters', voter.id);
       const clearData = {};
-      Object.keys(surveyData).forEach(key => {
-        clearData[key] = null;
-      });
-      
-      await update(voterRef, clearData);
+      Object.keys(surveyData).forEach(key => { clearData[key] = null; });
+      await updateDoc(voterDocRef, clearData);
       setSurveyData({
         gender: '',
         dob: '',
