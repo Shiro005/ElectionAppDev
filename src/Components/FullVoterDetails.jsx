@@ -297,7 +297,7 @@ const FullVoterDetails = () => {
                   <DetailRow label="Voter ID" value={voter.voterId} />
                   <DetailRow label="Serial Number" value={voter.serialNumber} />
                   <DetailRow label="Booth Number" value={voter.boothNumber} />
-                  <DetailRow label="WhatsApp Number" value={voter.whatsappNumber} />
+                  <DetailRow label="WhatsApp Number" value={voter.whatsapp} />
                   <DetailRow 
                     label="Age & Gender" 
                     value={`${voter.age || 'N/A'} | ${voter.gender || 'N/A'}`} 

@@ -12,15 +12,34 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
   const [modalQuery, setModalQuery] = useState('');
   const [modalPage, setModalPage] = useState(1);
   const [printing, setPrinting] = useState(false);
+  const [loadingOperation, setLoadingOperation] = useState(false);
+  const loadingRef = useRef(false);
   
   const pageSize = 1000;
   const modalDebounceRef = useRef(null);
 
   useEffect(() => {
     if (showFamilyModal) {
-      loadAllVoters();
-      setModalQuery(searchTerm || '');
-      setModalPage(1);
+      const initializeModal = async () => {
+        try {
+          setLoadingOperation(true);
+          await loadAllVoters();
+          setModalQuery(searchTerm || '');
+          setModalPage(1);
+          
+          // Focus search input after modal is fully rendered
+          setTimeout(() => {
+            const searchInput = document.getElementById('family-modal-search');
+            if (searchInput) {
+              searchInput.focus();
+            }
+          }, 100);
+        } finally {
+          setLoadingOperation(false);
+        }
+      };
+      
+      initializeModal();
     }
   }, [showFamilyModal]);
 
@@ -51,13 +70,32 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
   };
 
   const addFamilyMember = async (memberId) => {
+    if (loadingRef.current) return;
+    
     try {
+      setLoadingOperation(true);
+      loadingRef.current = true;
+
       const voterDocRef = doc(db, 'voters', voter.id);
       const memberDocRef = doc(db, 'voters', memberId);
 
-      const [voterSnap, memberSnap] = await Promise.all([getDoc(voterDocRef), getDoc(memberDocRef)]);
-      const voterData = voterSnap.exists() ? voterSnap.data() : {};
-      const memberData = memberSnap.exists() ? memberSnap.data() : {};
+      const [voterSnap, memberSnap] = await Promise.all([
+        getDoc(voterDocRef),
+        getDoc(memberDocRef)
+      ]);
+
+      if (!voterSnap.exists() || !memberSnap.exists()) {
+        throw new Error('मतदार माहिती आढळली नाही');
+      }
+
+      const voterData = voterSnap.data();
+      const memberData = memberSnap.data();
+
+      // Check if already a family member
+      if (voterData.familyMembers?.[memberId]) {
+        alert('हा मतदार आधीच कुटुंबात आहे');
+        return;
+      }
 
       const familyMembersObj = { ...(voterData.familyMembers || {}) };
       familyMembersObj[memberId] = true;
@@ -72,10 +110,13 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
 
       onUpdate?.();
       setShowFamilyModal(false);
-      alert('Family member added successfully!');
+      alert('कुटुंब सदस्य यशस्वीरित्या जोडला!');
     } catch (error) {
       console.error('Error adding family member:', error);
-      alert('Failed to add family member.');
+      alert('कुटुंब सदस्य जोडण्यात त्रुटी: ' + (error.message || error));
+    } finally {
+      setLoadingOperation(false);
+      loadingRef.current = false;
     }
   };
 
@@ -156,29 +197,77 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
     }
   };
 
-  const shareFamilyViaWhatsApp = () => {
+  const shareFamilyViaWhatsApp = async () => {
+    if (loadingRef.current) return;
+    
     if (familyMembers.length === 0) {
-      alert('No family members to share.');
+      alert('कुटुंब सदस्य जोडलेले नाहीत');
       return;
     }
 
-    const whatsappNumber = voter.whatsapp || voter.whatsappNumber;
-    if (!whatsappNumber) {
-      alert('WhatsApp number not available. Please add WhatsApp number first.');
-      return;
-    }
+    try {
+      setLoadingOperation(true);
+      loadingRef.current = true;
 
-    const message = generateWhatsAppMessage(true);
-    const formattedNumber = whatsappNumber.replace(/\D/g, '');
-    const url = `https://wa.me/${formattedNumber}?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
+      const whatsappNumber = voter.whatsapp || voter.whatsappNumber;
+      let numberToUse = whatsappNumber;
+
+      if (!numberToUse) {
+        const newNumber = prompt('व्हॉट्सअॅप क्रमांक टाका:');
+        if (!newNumber) return;
+
+        if (!/^\d{10}$/.test(newNumber)) {
+          alert('कृपया 10 अंकी व्हॉट्सअॅप क्रमांक टाका');
+          return;
+        }
+
+        numberToUse = newNumber;
+        
+        // Save the new number
+        const voterDocRef = doc(db, 'voters', voter.id);
+        await updateDoc(voterDocRef, { whatsapp: numberToUse });
+        onUpdate?.();
+      }
+
+      const message = generateWhatsAppMessage(true);
+      const formattedNumber = numberToUse.replace(/\D/g, '');
+      if (!formattedNumber.startsWith('91')) {
+        formattedNumber = '91' + formattedNumber;
+      }
+      const url = `https://wa.me/${formattedNumber}?text=${encodeURIComponent(message)}`;
+      window.open(url, '_system');
+    } catch (error) {
+      console.error('WhatsApp sharing error:', error);
+      alert('व्हॉट्सअॅप शेअर करण्यात त्रुटी: ' + (error.message || error));
+    } finally {
+      setLoadingOperation(false);
+      loadingRef.current = false;
+    }
   };
 
   const printFamily = async () => {
-    // This will be handled by BluetoothPrinter component
-    // We'll pass this function via props
-    if (typeof window.printFamily === 'function') {
-      window.printFamily(true);
+    if (loadingRef.current) return;
+    
+    if (!familyMembers || familyMembers.length === 0) {
+      alert('कुटुंब सदस्य जोडलेले नाहीत');
+      return;
+    }
+
+    try {
+      setPrinting(true);
+      loadingRef.current = true;
+
+      if (typeof window.printFamily === 'function') {
+        await window.printFamily(true);
+      } else {
+        throw new Error('प्रिंटर कनेक्ट केलेला नाही');
+      }
+    } catch (error) {
+      console.error('Printing error:', error);
+      alert(error.message || 'प्रिंटिंग मध्ये त्रुटी आली');
+    } finally {
+      setPrinting(false);
+      loadingRef.current = false;
     }
   };
 
@@ -297,8 +386,13 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => window.open(`/voter/${member.id}`, '_blank')}
+                onClick={() => {
+                  const link = `/voter/${member.id}`;
+                  window.history.pushState(null, '', link);
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                }}
                 className="text-orange-600 hover:text-orange-700 text-xs font-medium px-3 py-1 bg-orange-50 rounded-md transition-colors"
+                disabled={loadingOperation}
               >
                 <TranslatedText>View</TranslatedText>
               </button>
@@ -323,7 +417,7 @@ const FamilyManagement = ({ voter, familyMembers, onUpdate, candidateInfo }) => 
       {/* Family Modal */}
       {showFamilyModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+          <div className={`bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden ${loadingOperation ? 'opacity-75' : ''}`}>
             {/* Header */}
             <div className="p-4 border-b border-gray-200 flex items-start justify-between gap-4">
               <div>
