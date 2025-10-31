@@ -27,14 +27,14 @@ import * as XLSX from 'xlsx'
 const FilterPage = () => {
   const [voters, setVoters] = useState([]);
   const [filteredVoters, setFilteredVoters] = useState([]);
-  const [displayedVoters, setDisplayedVoters] = useState([]);
+  // removed displayedVoters state to compute via useMemo for fewer state updates
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine ?? true);
   const [connectionInfo, setConnectionInfo] = useState({ effectiveType: 'unknown' });
   const [usingCache, setUsingCache] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(1000); // reduce on mobile below
+  const [itemsPerPage, setItemsPerPage] = useState(200); // reduce on mobile below (200 desktop, 100 mobile)
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportPassword, setExportPassword] = useState('');
   const [exportError, setExportError] = useState('');
@@ -60,7 +60,8 @@ const FilterPage = () => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      setItemsPerPage(mobile ? 100 : 1000);
+      // keep items per page moderate to avoid huge DOM renders
+      setItemsPerPage(mobile ? 100 : 200);
     };
     handleResize();
     window.addEventListener('resize', handleResize);
@@ -348,10 +349,10 @@ const FilterPage = () => {
     return () => debouncedApplyFilters.cancel();
   }, [debouncedApplyFilters, filters, voters]);
 
-  // paginate displayedVoters
-  useEffect(() => {
+  // compute displayed voters via useMemo to avoid extra state updates and re-renders
+  const displayedVoters = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
-    setDisplayedVoters(filteredVoters.slice(start, start + itemsPerPage));
+    return filteredVoters.slice(start, start + itemsPerPage);
   }, [filteredVoters, currentPage, itemsPerPage]);
 
   // unique values for selects
@@ -513,6 +514,33 @@ const FilterPage = () => {
       </div>
     </div>
   ));
+
+  // Desktop table row - memoized to avoid rerenders when unrelated state changes
+  const VoterRow = React.memo(({ v, serial }) => {
+    return (
+      <tr className="hover:bg-orange-50 cursor-pointer" onClick={() => handleVoterClick(v.id)}>
+        <td className="px-4 py-3 text-sm font-medium">{serial}</td>
+        <td className="px-4 py-3">
+          <div className="font-medium"><TranslatedText asText>{v.name}</TranslatedText></div>
+          <div className="text-sm text-gray-500">{v.fatherName ? <TranslatedText asText>{`S/O ${v.fatherName}`}</TranslatedText> : ''}</div>
+          <div className="text-xs text-gray-400 mt-1"><TranslatedText asText>ID:</TranslatedText> <TranslatedText asText>{v.voterId}</TranslatedText></div>
+        </td>
+        <td className="px-4 py-3">
+          {v.phone ? <div className="text-sm text-green-700">📞 <TranslatedText asText>{v.phone}</TranslatedText></div> : <div className="text-sm text-gray-400"><TranslatedText asText>No Phone</TranslatedText></div>}
+        </td>
+        <td className="px-4 py-3">
+          <div className="text-sm"><TranslatedText asText>{v.boothNumber ? `Booth: ${v.boothNumber}` : ''}</TranslatedText></div>
+          <div className="text-sm text-gray-500"><TranslatedText asText>{v.village}</TranslatedText></div>
+        </td>
+        <td className="px-4 py-3">
+          <div className="flex flex-col gap-2">
+            {v.hasVoted ? <span className="text-green-700 text-sm"><TranslatedText asText>Voted</TranslatedText></span> : <span className="text-red-700 text-sm"><TranslatedText asText>Not Voted</TranslatedText></span>}
+            <span className="text-xs px-2 py-0.5 rounded" style={{ background: '#f3f4f6' }}><TranslatedText asText>{v.supportStatus || 'Unknown'}</TranslatedText></span>
+          </div>
+        </td>
+      </tr>
+    );
+  });
 
   // Pagination UI for desktop & mobile
   const Pagination = () => {
@@ -681,27 +709,7 @@ const FilterPage = () => {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {displayedVoters.map((v, idx) => (
-                      <tr key={v.id} className="hover:bg-orange-50 cursor-pointer" onClick={() => handleVoterClick(v.id)}>
-                        <td className="px-4 py-3 text-sm font-medium">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
-                        <td className="px-4 py-3">
-                          <div className="font-medium"><TranslatedText asText>{v.name}</TranslatedText></div>
-                          <div className="text-sm text-gray-500">{v.fatherName ? <TranslatedText asText>{`S/O ${v.fatherName}`}</TranslatedText> : ''}</div>
-                          <div className="text-xs text-gray-400 mt-1"><TranslatedText asText>ID:</TranslatedText> <TranslatedText asText>{v.voterId}</TranslatedText></div>
-                        </td>
-                        <td className="px-4 py-3">
-                          {v.phone ? <div className="text-sm text-green-700">📞 <TranslatedText asText>{v.phone}</TranslatedText></div> : <div className="text-sm text-gray-400"><TranslatedText asText>No Phone</TranslatedText></div>}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="text-sm"><TranslatedText asText>{v.boothNumber ? `Booth: ${v.boothNumber}` : ''}</TranslatedText></div>
-                          <div className="text-sm text-gray-500"><TranslatedText asText>{v.village}</TranslatedText></div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col gap-2">
-                            {v.hasVoted ? <span className="text-green-700 text-sm"><TranslatedText asText>Voted</TranslatedText></span> : <span className="text-red-700 text-sm"><TranslatedText asText>Not Voted</TranslatedText></span>}
-                            <span className="text-xs px-2 py-0.5 rounded" style={{ background: '#f3f4f6' }}><TranslatedText asText>{v.supportStatus || 'Unknown'}</TranslatedText></span>
-                          </div>
-                        </td>
-                      </tr>
+                      <VoterRow key={v.id} v={v} serial={(currentPage - 1) * itemsPerPage + idx + 1} />
                     ))}
                   </tbody>
                 </table>

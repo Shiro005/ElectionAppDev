@@ -320,7 +320,7 @@ function App() {
             <div className="flex items-center justify-center text-xs text-gray-300">
               <img src="https://webreich.vercel.app/logo.png" alt="" className='h-5 w-5 mr-2' />
               <strong className="text-orange-400 font-semibold">WebReich Solutions</strong>
-              <span className="text-gray-900 mr-2 ml-2">|</span>
+              <span className="text-gray-900 ">\</span>
               <span className='text-black'>Partner PR Services & Technology</span>
             </div>
           </div>

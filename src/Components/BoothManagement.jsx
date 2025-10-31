@@ -1287,13 +1287,13 @@ const BoothDetailView = ({ booth, onBack, onViewVoterDetails }) => {
               >
                 <FiDownload size={18} />
               </button>
-              <button
+              {/* <button
                 onClick={() => setShowDeleteModal(true)}
                 className="w-10 h-10 bg-red-500 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-all"
                 title="Delete Booth"
               >
                 <FiTrash2 size={18} />
-              </button>
+              </button> */}
             </div>
           </div>
 
@@ -1473,13 +1473,13 @@ const BoothDetailView = ({ booth, onBack, onViewVoterDetails }) => {
                 >
                   <TranslatedText>Cancel</TranslatedText>
                 </button>
-                <button
+                {/* <button
                   onClick={deleteBoothAndVoters}
                   className="flex-1 bg-red-500 text-white py-3 rounded font-medium hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
                 >
                   <FiTrash2 size={16} />
                   <TranslatedText>Delete</TranslatedText>
-                </button>
+                </button> */}
               </div>
             </div>
           </div>

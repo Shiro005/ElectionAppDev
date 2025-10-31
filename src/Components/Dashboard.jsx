@@ -212,7 +212,7 @@ const Dashboard = () => {
   }, []);
 
   const verifyPasswordAndExport = useCallback(async () => {
-    if (exportPassword === 'admin123') {
+    if ((exportPassword || '').trim() === 'admin8668722207') {
       await exportAllVoters();
       setShowExportModal(false);
       setExportPassword('');
@@ -474,7 +474,7 @@ const Dashboard = () => {
 
               {/* Export Button */}
               <button
-                onClick={exportAllVoters}
+                onClick={handleExport}
                 className="px-4 py-2.5 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-all duration-200 flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow-md"
               >
                 <FiDownload className="text-lg" />
@@ -636,7 +636,7 @@ const Dashboard = () => {
 
               {/* Export Button */}
               <button
-                onClick={exportAllVoters}
+                onClick={handleExport}
                 className="px-4 py-2.5 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-all duration-200 flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow-md"
               >
                 <FiDownload className="text-lg" />
