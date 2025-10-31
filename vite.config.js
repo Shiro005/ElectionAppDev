@@ -18,8 +18,8 @@ export default defineConfig({
         background_color: "#ffffff",
         theme_color: "#f97316",
         icons: [
-          { src: "/logo.png", sizes: "192x192", type: "image/png" },
-          { src: "/logo.png", sizes: "512x512", type: "image/png" }
+          { src: "/logoambabd.jpeg", sizes: "192x192", type: "image/png" },
+          { src: "/logoambabd.jpeg", sizes: "512x512", type: "image/png" }
         ]
       }
     })

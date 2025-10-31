@@ -11,6 +11,9 @@ import BoothManagement from './Components/BoothManagement';
 import FilterPage from './Components/FilterPage';
 import FullVoterDetails from './Components/FullVoterDetails';
 import Team from './Components/Team';
+import Contactus from './Components/Contactus';
+import Setting from './Components/Setting';
+import NewSurvey from './Components/NewSurvey';
 
 // Navigation component for better organization
 const Navigation = ({ currentLanguage, languages, changeLanguage, translating, mobileMenuOpen, setMobileMenuOpen }) => {
@@ -24,13 +27,15 @@ const Navigation = ({ currentLanguage, languages, changeLanguage, translating, m
     // { name: 'Upload', path: '/upload', icon: '' },
     { name: 'Booth', path: '/booths', icon: '' },
     { name: 'Lists', path: '/lists', icon: '' },
+    { name: 'New Survey', path: '/new-survey', icon: '' },
     { name: 'Setting', path: '/setting', icon: '' },
+    { name: 'Contact', path: '/contact', icon: '' },
   ];
 
   const isActive = (path) => location.pathname === path;
 
   return (
-    <nav className="bg-white border-b border-gray-200 shadow-sm">
+    <nav className="bg-gradient-to-l from-orange-600 to-orange-400 border-b border-gray-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo & Brand */}
@@ -43,7 +48,7 @@ const Navigation = ({ currentLanguage, languages, changeLanguage, translating, m
               <div className="relative">
                 <div className="w-12 h-12 bg-gradient-to-br from-green-200 to-orange-600 rounded-full flex items-center justify-center">
                   <img
-                    src="https://cdn-icons-png.flaticon.com/128/6886/6886425.png"
+                    src="/logoambabd.jpeg"
                     alt="Logo"
                     className='rounded-full'
                   />
@@ -51,11 +56,11 @@ const Navigation = ({ currentLanguage, languages, changeLanguage, translating, m
                 {/* <div className="absolute -inset-1 bg-gradient-to-r from-orange-400 to-red-400 rounded-xl opacity-20 group-hover:opacity-30 blur-sm transition-opacity duration-300"></div> */}
               </div>
               <div className="flex flex-col">
-                <span className="text-lg font-bold text-gray-900 group-hover:text-gray-700 transition-colors">
-                  <TranslatedText>JanNetaa</TranslatedText>
+                <span className="text-lg font-bold text-white group-hover:text-gray-100 transition-colors">
+                  <TranslatedText>शिवप्रसाद सुरेशराव चांगले</TranslatedText>
                 </span>
-                <span className="text-xs text-gray-500 group-hover:text-gray-600 transition-colors">
-                  <TranslatedText>Election Management App</TranslatedText>
+                <span className="text-xs text-gray-50 group-hover:text-gray-100 transition-colors">
+                  <TranslatedText>अंबड नगर परिषद निवडणूक 2025</TranslatedText>
                 </span>
               </div>
             </Link>
@@ -68,8 +73,8 @@ const Navigation = ({ currentLanguage, languages, changeLanguage, translating, m
                 key={item.path}
                 to={item.path}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${isActive(item.path)
-                  ? 'bg-orange-50 text-orange-700 border border-orange-200 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'bg-gray-100 text-orange-700 border border-orange-200 shadow-sm'
+                  : 'text-gray-50 hover:text-gray-100 hover:bg-orange-700'
                   }`}
               >
                 {/* <span className="text-base">{item.icon}</span> */}
@@ -140,7 +145,7 @@ const Navigation = ({ currentLanguage, languages, changeLanguage, translating, m
                   <User className="w-4 h-4 text-white" />
                 </div>
                 <div className="text-left">
-                  <div className="text-sm font-medium text-gray-900"> <TranslatedText>JaanNetaa</TranslatedText></div>
+                  <div className="text-sm font-medium text-gray-900"> <TranslatedText>शिवप्रसाद सुरेशराव चांगले</TranslatedText></div>
                   <div className="text-xs text-gray-500"><TranslatedText>Candidate</TranslatedText></div>
                 </div>
                 <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
@@ -155,7 +160,7 @@ const Navigation = ({ currentLanguage, languages, changeLanguage, translating, m
                   <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden">
                     <div className="p-2">
                       <div className="px-3 py-3 border-b border-gray-100">
-                        <div className="text-sm font-semibold text-gray-900"><TranslatedText>JanNetaa</TranslatedText></div>
+                        <div className="text-sm font-semibold text-gray-900"><TranslatedText>शिवप्रसाद सुरेशराव चांगले</TranslatedText></div>
                         <div className="text-xs text-gray-500"><TranslatedText>jannetaa@campaign.com</TranslatedText></div>
                       </div>
 
@@ -243,7 +248,7 @@ const Navigation = ({ currentLanguage, languages, changeLanguage, translating, m
                   <User className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-semibold text-gray-900"><TranslatedText>Jannetaa</TranslatedText></div>
+                  <div className="text-sm font-semibold text-gray-900"><TranslatedText>शिवप्रसाद सुरेशराव चांगले</TranslatedText></div>
                   <div className="text-xs text-gray-500"><TranslatedText>Candidate</TranslatedText></div>
                 </div>
               </div>
@@ -302,6 +307,10 @@ function App() {
             <Route path="/booths" element={<BoothManagement />} />
             <Route path="/lists" element={<FilterPage />} />
             <Route path="/voter/:voterId" element={<FullVoterDetails />} />
+            <Route path="/contact" element={<Contactus />} />
+             <Route path="/survey" element={<NewSurvey />} />
+            <Route path="/settings" element={<Setting />} />
+            <Route path="/new-survey" element={<NewSurvey />} />
             <Route path="/" element={<Navigate to="/home" replace />} />
           </Routes>
         </main>

@@ -102,7 +102,7 @@ const BluetoothPrinter = ({ voter, familyMembers, candidateInfo }) => {
 
     let message = `*${candidateInfo.party}*\n`;
     message += `*${candidateInfo.name}*\n`;
-    message += `${candidateInfo.slogan}\n\n`;
+    // message += `${candidateInfo.slogan}\n\n`;
 
     if (isFamily && familyMembers.length > 0) {
       message += `*कुटुंब तपशील*\n\n`;
@@ -134,8 +134,7 @@ const BluetoothPrinter = ({ voter, familyMembers, candidateInfo }) => {
       message += `*मतदान केंद्र:* ${voterData.pollingStationAddress || 'N/A'}\n\n`;
     }
 
-    message += `मी आपला *जननेता* माझी निशाणी *जननेता* या चिन्हावर मतदान करून मला प्रचंड बहुमतांनी विजय करा\n\n`;
-    message += `*${candidateInfo.name}*`;
+    message += `मी आपला *शिवप्रसाद सुरेशराव चांगले* माझी निशाणी *तुतारी* या चिन्हावर मतदान करून मला प्रचंड बहुमतांनी विजय करा\n\n`;
 
     return message;
   };

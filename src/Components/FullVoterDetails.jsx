@@ -28,12 +28,12 @@ const FullVoterDetails = () => {
 
   // Candidate branding
   const candidateInfo = useMemo(() => ({
-    name: "जननेता",
-    party: "जननेता जनता पार्टी",
-    electionSymbol: "जननेता",
-    slogan: "सबका साथ, सबका विकास",
-    contact: "8668722207",
-    area: "वाशीम प्रभाग 1",
+    name: "शिवप्रसाद सुरेशराव चांगले",
+    party: "राष्ट्रवादी काँग्रेस पार्टी (शरद पवार गट)",
+    electionSymbol: "तुतारी ",
+    // slogan: "सबका साथ, सबका विकास",
+    contact: "9970736633",
+    area: "अंबड नगर परिषद निवडणूक 2025",
   }), []);
 
   // Cleanup function for abort controller

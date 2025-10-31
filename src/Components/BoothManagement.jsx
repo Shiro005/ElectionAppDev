@@ -239,7 +239,7 @@ const ExportModal = ({ onClose, onExport, isLoading }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (password !== '1234') {
+    if (password !== 'AkolaPRServices@3535') {
       setError('Incorrect password');
       return;
     }
@@ -478,10 +478,15 @@ const BoothListView = ({ onBoothSelect, loadingBoothDetail, onViewVoterDetails }
 
       const progressPercentage = Math.round((b.votedCount / Math.max(b.voterCount, 1)) * 100);
 
+      // derive numeric booth number when possible for sorting (e.g., '203' or 'Booth 203')
+      const digitsMatch = (boothName || '').toString().match(/(\d+)/);
+      const numericBooth = digitsMatch ? parseInt(digitsMatch[0], 10) : Number.MAX_SAFE_INTEGER;
+
       return {
         ...b,
         boothName,
         boothNumber: boothName,
+        numericBooth,
         progressPercentage
       };
     });
@@ -519,7 +524,7 @@ const BoothListView = ({ onBoothSelect, loadingBoothDetail, onViewVoterDetails }
         familyMembers: v.familyMembers || {}
       })));
 
-      const boothsData = createBoothsFromVoters(votersData.map(v => ({ id: v.id, ...v })));
+  const boothsData = createBoothsFromVoters(votersData.map(v => ({ id: v.id, ...v })));
 
       if (!boothsSnap.empty) {
         const boothAssignments = {};
@@ -536,8 +541,11 @@ const BoothListView = ({ onBoothSelect, loadingBoothDetail, onViewVoterDetails }
           }
           return booth;
         });
+        // sort booths by numericBooth then by boothName
+        updatedBooths.sort((a, b) => (a.numericBooth || Number.MAX_SAFE_INTEGER) - (b.numericBooth || Number.MAX_SAFE_INTEGER) || String(a.boothName).localeCompare(String(b.boothName)));
         setBooths(updatedBooths);
       } else {
+        boothsData.sort((a, b) => (a.numericBooth || Number.MAX_SAFE_INTEGER) - (b.numericBooth || Number.MAX_SAFE_INTEGER) || String(a.boothName).localeCompare(String(b.boothName)));
         setBooths(boothsData);
       }
 
@@ -616,14 +624,28 @@ const BoothListView = ({ onBoothSelect, loadingBoothDetail, onViewVoterDetails }
   };
 
   const filteredBooths = useMemo(() => 
-    booths.filter(booth => 
-      !searchTerm.trim() ||
-      booth.pollingStationAddress.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booth.village.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (booth.karyakartaName && booth.karyakartaName.toLowerCase().includes(searchTerm.toLowerCase()))
-    ),
-    [booths, searchTerm]
-  );
+    {
+      const q = searchTerm.trim().toLowerCase();
+      const results = booths.filter(booth => {
+        if (!q) return true;
+
+        // match by polling address, village, karyakarta name
+        if ((booth.pollingStationAddress || '').toLowerCase().includes(q)) return true;
+        if ((booth.village || '').toLowerCase().includes(q)) return true;
+        if ((booth.karyakartaName || '').toLowerCase().includes(q)) return true;
+
+        // match booth number or numeric searches (e.g., '203')
+        if ((booth.boothNumber || '').toString().toLowerCase().includes(q)) return true;
+        if ((booth.boothName || '').toString().toLowerCase().includes(q)) return true;
+
+        return false;
+      });
+
+      // sort results by numericBooth ascending then name
+      results.sort((a, b) => (a.numericBooth || Number.MAX_SAFE_INTEGER) - (b.numericBooth || Number.MAX_SAFE_INTEGER) || String(a.boothName).localeCompare(String(b.boothName)));
+      return results;
+    }
+  , [booths, searchTerm]);
 
   const handleAssignKaryakarta = async () => {
     if (!selectedKaryakarta) {
@@ -743,13 +765,13 @@ const BoothListView = ({ onBoothSelect, loadingBoothDetail, onViewVoterDetails }
         {/* Search Bar */}
         <div className="relative mb-4">
           <FiSearch className="absolute left-3 top-3.5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search booths by name, area, or karyakarta..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-gray-50 rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:bg-white transition-colors"
-          />
+            <input
+              type="text"
+              placeholder="Search booths by number, name, area, or karyakarta..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-gray-50 rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:bg-white transition-colors"
+            />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm('')}
@@ -843,7 +865,7 @@ const BoothListView = ({ onBoothSelect, loadingBoothDetail, onViewVoterDetails }
             </p>
           </div>
         ) : (
-          filteredBooths.map((booth) => (
+          filteredBooths.map((booth, idx) => (
             <div
               key={booth.id}
               className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-sm transition-all"
@@ -853,9 +875,14 @@ const BoothListView = ({ onBoothSelect, loadingBoothDetail, onViewVoterDetails }
                   className="flex-1 cursor-pointer"
                   onClick={() => onBoothSelect(booth)}
                 >
-                  <h3 className="font-bold text-gray-900 text-base mb-1">
-                    {booth.boothName}
-                  </h3>
+                  <div className="flex items-center gap-3 mb-1">
+                    <div className="w-7 h-7 rounded-full bg-orange-100 text-orange-700 font-semibold flex items-center justify-center text-sm">
+                      {idx + 1}
+                    </div>
+                    <h3 className="font-bold text-gray-900 text-base">
+                      {booth.boothName}
+                    </h3>
+                  </div>
                   <div className="flex items-center gap-1 text-gray-600 text-sm">
                     <FiMapPin size={14} />
                     <span>{booth.village}</span>
